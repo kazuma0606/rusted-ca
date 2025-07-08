@@ -26,7 +26,7 @@
 
 ### Domain Layer Errors
 ```rust
-// src/domain/error.rs
+// src/shared/domain_error.rs
 
 use thiserror::Error;
 
@@ -64,7 +64,7 @@ pub type DomainResult<T> = Result<T, DomainError>;
 
 ### Application Layer Errors
 ```rust
-// src/application/error.rs
+// src/shared/application_error.rs
 
 use thiserror::Error;
 use crate::domain::error::DomainError;
@@ -113,7 +113,7 @@ pub type ApplicationResult<T> = Result<T, ApplicationError>;
 
 ### Infrastructure Layer Errors
 ```rust
-// src/infrastructure/error.rs
+// src/shared/infrastructure_error.rs
 
 use thiserror::Error;
 
@@ -167,7 +167,7 @@ pub type InfrastructureResult<T> = Result<T, InfrastructureError>;
 
 ### Presentation Layer Errors
 ```rust
-// src/presentation/error.rs
+// src/shared/presentation_error.rs
 
 use thiserror::Error;
 use crate::application::error::ApplicationError;
