@@ -43,6 +43,9 @@ impl JwtConfig {
 }
 
 pub static JWT_CONFIG: LazyLock<JwtConfig> = LazyLock::new(|| {
+    #[cfg(feature = "testmode")]
+    let secret = "test_jwt_secret".to_string();
+    #[cfg(not(feature = "testmode"))]
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| {
         "mK8vL9jN2pQ3rS4tU5vW6xY7zA1bC2dE3fG4hI5jK6lM7nO8pQ9rS0tU1vW2xY3z4A5bC6dE7fG8h".to_string()
     });

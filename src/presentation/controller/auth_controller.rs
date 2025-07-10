@@ -1,10 +1,7 @@
 //presentation/controller/auth_controller.rs
 use crate::presentation::dto::login_request::LoginRequest;
-use crate::presentation::dto::login_response::LoginResponse;
-use crate::shared::middleware::auth_middleware::{AuthError, JwtClaims, JwtConfig, JwtService};
-use axum::{Json, http::StatusCode};
-use dotenvy::dotenv;
-use std::env;
+use crate::shared::middleware::auth_middleware::{AuthError, JwtService};
+use axum::Json;
 
 #[derive(Debug, serde::Serialize)]
 pub struct UserInfo {
@@ -26,9 +23,14 @@ pub struct UserLoginResponse {
 pub async fn login(
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<UserLoginResponse>, AuthError> {
-    dotenv().ok();
-    let auth_user = env::var("AUTH_USER").unwrap_or_else(|_| "auth_user".to_string());
-    let auth_pass = env::var("AUTH_PASS").unwrap_or_else(|_| "auth_password".to_string());
+    // テスト用featureで分岐
+    #[cfg(feature = "testmode")]
+    let (auth_user, auth_pass) = ("test_user".to_string(), "test_pass".to_string());
+    #[cfg(not(feature = "testmode"))]
+    let (auth_user, auth_pass) = (
+        std::env::var("AUTH_USER").unwrap_or_else(|_| "auth_user".to_string()),
+        std::env::var("AUTH_PASS").unwrap_or_else(|_| "auth_password".to_string()),
+    );
 
     if payload.username != auth_user || payload.password != auth_pass {
         return Err(AuthError::WrongCredentials);
