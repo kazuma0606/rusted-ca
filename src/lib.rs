@@ -61,17 +61,19 @@ pub mod domain {
     pub mod value_object {
         pub mod birth_date;
         pub mod email;
+        pub mod pagination;
         pub mod password;
         pub mod phone;
         pub mod user_id;
         pub mod user_name;
 
-        // pub use birth_date::*;
-        // pub use email::*;
-        // pub use password::*;
-        // pub use phone::*;
-        // pub use user_id::*;
-        // pub use user_name::*;
+        pub use birth_date::*;
+        pub use email::*;
+        pub use pagination::*;
+        pub use password::*;
+        pub use phone::*;
+        pub use user_id::*;
+        pub use user_name::*;
     }
 
     pub mod repository {

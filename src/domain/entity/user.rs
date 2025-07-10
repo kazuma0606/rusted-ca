@@ -37,4 +37,8 @@ impl User {
             birth_date,
         })
     }
+
+    pub fn get_id(&self) -> &UserId {
+        &self.id
+    }
 }
