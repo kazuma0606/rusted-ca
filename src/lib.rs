@@ -199,6 +199,7 @@ pub mod infrastructure {
 pub mod presentation {
     pub mod controller {
         pub mod auth_controller;
+        pub mod fortune_controller;
         pub mod health_controller;
         pub mod metrics_controller;
         pub mod user_controller;
@@ -232,6 +233,7 @@ pub mod presentation {
     pub mod router {
         pub mod app_router;
         pub mod auth_router;
+        pub mod fortune_router;
         pub mod metrics_router;
         pub mod user_router;
 
