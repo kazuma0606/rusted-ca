@@ -17,4 +17,8 @@ impl UserName {
         }
         Ok(Self(value))
     }
+
+    pub fn value(&self) -> &str {
+        &self.0
+    }
 }

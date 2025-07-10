@@ -30,12 +30,14 @@
 // 正しい配置: presentation/controller/user_controller.rs
 // =============================================================================
 
-use crate::application::dto::user_request_dto::CreateUserRequestDto;
+use crate::application::dto::user_request_dto::{CreateUserRequestDto, UpdateUserRequestDto};
 use crate::application::dto::user_response_dto::UserResponseDto;
 use crate::application::usecases::create_user_usecase::CreateUserUsecaseInterface;
 use crate::application::usecases::get_user_usecase::GetUserQueryUsecaseInterface;
+use crate::application::usecases::update_user_usecase::UpdateUserUsecaseInterface;
 use crate::presentation::dto::api_response::ApiResponse;
 use crate::presentation::dto::create_user_request::CreateUserRequest;
+use crate::presentation::dto::update_user_request::UpdateUserRequest;
 use crate::presentation::dto::user_response::UserResponse;
 use crate::shared::error::application_error::ApplicationError;
 use axum::{
@@ -55,24 +57,32 @@ use std::sync::Arc;
 /// 3. UseCase実行
 /// 4. Application DTOからPresentation DTOへの変換
 /// 5. HTTPレスポンスの生成（ステータスコード + JSON）
-pub struct UserController<T, U>
+pub struct UserController<T, U, V>
 where
     T: CreateUserUsecaseInterface + Send + Sync,
     U: GetUserQueryUsecaseInterface + Send + Sync,
+    V: UpdateUserUsecaseInterface + Send + Sync,
 {
     create_user_usecase: Arc<T>,
     get_user_usecase: Arc<U>,
+    update_user_usecase: Arc<V>,
 }
 
-impl<T, U> UserController<T, U>
+impl<T, U, V> UserController<T, U, V>
 where
     T: CreateUserUsecaseInterface + Send + Sync,
     U: GetUserQueryUsecaseInterface + Send + Sync,
+    V: UpdateUserUsecaseInterface + Send + Sync,
 {
-    pub fn new(create_user_usecase: Arc<T>, get_user_usecase: Arc<U>) -> Self {
+    pub fn new(
+        create_user_usecase: Arc<T>,
+        get_user_usecase: Arc<U>,
+        update_user_usecase: Arc<V>,
+    ) -> Self {
         Self {
             create_user_usecase,
             get_user_usecase,
+            update_user_usecase,
         }
     }
 
@@ -183,6 +193,83 @@ where
                 ))
             }
             Err(error) => {
+                let (status_code, error_response) =
+                    self.map_application_error_to_http_response(error);
+                Err((status_code, Json(error_response)))
+            }
+        }
+    }
+
+    /// PUT /api/users/{id} - ユーザー更新
+    pub async fn update_user(
+        &self,
+        Path(user_id): Path<String>,
+        JsonRequest(request): JsonRequest<UpdateUserRequest>,
+    ) -> Result<(StatusCode, Json<ApiResponse<UserResponse>>), (StatusCode, Json<Value>)> {
+        // 1. プレゼンテーション層でのバリデーション
+        if let Err(validation_error) = request.validate() {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "success": false,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": validation_error
+                    }
+                })),
+            ));
+        }
+
+        // 2. UUID形式チェック
+        if !self.is_valid_uuid(&user_id) {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "success": false,
+                    "error": {
+                        "code": "INVALID_UUID",
+                        "message": "Invalid user ID format"
+                    }
+                })),
+            ));
+        }
+
+        // 3. Presentation DTO → Application DTO 変換
+        let app_request = UpdateUserRequestDto {
+            id: user_id,
+            name: request.name,
+            phone: request.phone,
+            birth_date: request.birth_date,
+        };
+
+        // 4. UseCase実行
+        match self.update_user_usecase.execute(app_request).await {
+            Ok(app_response) => {
+                // 5. Application DTO → Presentation DTO 変換
+                let presentation_response = UserResponse {
+                    id: app_response.id,
+                    email: app_response.email,
+                    name: app_response.name,
+                    phone: app_response.phone,
+                    birth_date: app_response.birth_date,
+                    created_at: chrono::Utc::now().to_rfc3339(), // 実際はDBから
+                    updated_at: chrono::Utc::now().to_rfc3339(),
+                };
+
+                // 6. HTTPレスポンス生成
+                Ok((
+                    StatusCode::OK,
+                    Json(ApiResponse {
+                        success: true,
+                        data: Some(presentation_response),
+                        message: "User updated successfully".to_string(),
+                        request_id: format!("req_{}", uuid::Uuid::new_v4()),
+                        processing_time_ms: 0,
+                    }),
+                ))
+            }
+            Err(error) => {
+                // 7. エラーハンドリング
                 let (status_code, error_response) =
                     self.map_application_error_to_http_response(error);
                 Err((status_code, Json(error_response)))

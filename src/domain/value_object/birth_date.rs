@@ -20,4 +20,8 @@ impl BirthDate {
         }
         Ok(Self(value))
     }
+
+    pub fn value(&self) -> &str {
+        &self.0
+    }
 }

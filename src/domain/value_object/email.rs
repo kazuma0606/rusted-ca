@@ -27,4 +27,8 @@ impl Email {
         // 簡易なメールアドレス形式チェック
         value.contains('@') && value.contains('.')
     }
+
+    pub fn value(&self) -> &str {
+        &self.0
+    }
 }

@@ -68,7 +68,8 @@ impl DIContainer {
                 crate::application::usecases::create_user_usecase::CreateUserUseCase<Box<dyn Fn() -> crate::domain::value_object::user_id::UserId + Send + Sync>>,
                 crate::application::usecases::get_user_usecase::GetUserUseCase<
                     crate::infrastructure::repository::in_memory_user_query_repository::SqliteUserQueryRepository
-                >
+                >,
+                crate::application::usecases::update_user_usecase::UpdateUserUseCase
             >
         >,
         Box<dyn std::error::Error + Send + Sync>,
@@ -78,14 +79,20 @@ impl DIContainer {
         let command_repo_trait: std::sync::Arc<dyn crate::domain::repository::user_command_repository::UserCommandRepositoryInterface + Send + Sync> = command_repo as std::sync::Arc<dyn crate::domain::repository::user_command_repository::UserCommandRepositoryInterface + Send + Sync>;
         let create_user_usecase =
             crate::application::usecases::create_user_usecase::CreateUserUseCase::new(
-                command_repo_trait,
+                command_repo_trait.clone(),
                 id_generator,
             );
         let get_user_usecase =
             crate::application::usecases::get_user_usecase::GetUserUseCase::new(query_repo.clone());
+        let update_user_usecase =
+            crate::application::usecases::update_user_usecase::UpdateUserUseCase::new(
+                command_repo_trait,
+                query_repo.clone(),
+            );
         let controller = crate::presentation::controller::user_controller::UserController::new(
             std::sync::Arc::new(create_user_usecase),
             std::sync::Arc::new(get_user_usecase),
+            std::sync::Arc::new(update_user_usecase),
         );
         Ok(std::sync::Arc::new(controller))
     }

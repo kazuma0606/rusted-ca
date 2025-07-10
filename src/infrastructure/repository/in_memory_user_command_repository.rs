@@ -23,8 +23,13 @@ impl SqliteUserCommandRepository {
 #[async_trait]
 impl UserCommandRepositoryInterface for SqliteUserCommandRepository {
     async fn save(&self, user: &User) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        println!(
+            "SqliteUserCommandRepository: Saving user with ID: {}",
+            user.id.0
+        );
         let user = user.clone();
         let result: Result<(), rusqlite::Error> = self.db.execute_command(move |conn| {
+            println!("SqliteUserCommandRepository: Executing INSERT query...");
             conn.execute(
                 "INSERT INTO users (id, email, name, password, phone, birth_date) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 params![
@@ -36,9 +41,13 @@ impl UserCommandRepositoryInterface for SqliteUserCommandRepository {
                     user.birth_date.as_ref().map(|b| b.0.clone()),
                 ],
             )?;
+            println!("SqliteUserCommandRepository: INSERT query executed successfully");
             Ok(())
         }).await;
-        result.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+        result.map_err(|e| {
+            println!("SqliteUserCommandRepository: Error saving user: {}", e);
+            Box::new(e) as Box<dyn std::error::Error + Send + Sync>
+        })
     }
 
     async fn update(&self, user: &User) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

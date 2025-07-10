@@ -25,3 +25,24 @@ impl CreateUserRequestDto {
         )
     }
 }
+
+/// ユーザー更新リクエストDTO
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateUserRequestDto {
+    pub id: String,
+    pub name: Option<String>,
+    pub phone: Option<String>,
+    pub birth_date: Option<String>,
+}
+
+impl UpdateUserRequestDto {
+    /// バリューオブジェクト変換用
+    pub fn to_value_objects(&self) -> (String, Option<String>, Option<String>, Option<String>) {
+        (
+            self.id.clone(),
+            self.name.clone(),
+            self.phone.clone(),
+            self.birth_date.clone(),
+        )
+    }
+}

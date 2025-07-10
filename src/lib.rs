@@ -107,11 +107,9 @@ pub mod application {
     pub mod commands {
         pub mod create_user_command;
         pub mod delete_user_command;
-        pub mod update_user_command;
 
         // pub use create_user_command::*;
         // pub use delete_user_command::*;
-        // pub use update_user_command::*;
     }
 
     pub mod queries {

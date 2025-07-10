@@ -44,6 +44,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("  - GET  /api/health - APIヘルスチェック");
     println!("  - POST /api/users - ユーザー作成");
     println!("  - GET  /api/users/:id - ユーザー取得");
+    println!("  - PUT  /api/users/:id - ユーザー更新");
 
     serve(listener, app).await?;
 

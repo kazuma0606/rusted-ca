@@ -41,4 +41,28 @@ impl User {
     pub fn get_id(&self) -> &UserId {
         &self.id
     }
+
+    pub fn id(&self) -> &UserId {
+        &self.id
+    }
+
+    pub fn email(&self) -> &Email {
+        &self.email
+    }
+
+    pub fn name(&self) -> &UserName {
+        &self.name
+    }
+
+    pub fn password(&self) -> &Password {
+        &self.password
+    }
+
+    pub fn phone(&self) -> Option<&Phone> {
+        self.phone.as_ref()
+    }
+
+    pub fn birth_date(&self) -> Option<&BirthDate> {
+        self.birth_date.as_ref()
+    }
 }
