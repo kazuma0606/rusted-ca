@@ -187,6 +187,14 @@ pub mod infrastructure {
     pub mod database {
         pub mod sqlite_connection;
     }
+
+    pub mod di {
+        pub mod container;
+    }
+
+    pub mod web {
+        pub mod run;
+    }
 }
 
 // ===== Presentation Layer =====

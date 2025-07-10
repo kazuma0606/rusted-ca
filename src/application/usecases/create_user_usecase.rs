@@ -22,21 +22,22 @@ pub trait CreateUserUsecaseInterface: Send + Sync {
     ) -> ApplicationResult<UserResponseDto>;
 }
 
-pub struct CreateUserUseCase<T, U>
+pub struct CreateUserUseCase<U>
 where
-    T: UserCommandRepositoryInterface + Send + Sync,
     U: Fn() -> UserId + Send + Sync,
 {
-    command_repository: Arc<T>,
-    id_generator: Arc<U>,
+    command_repository: std::sync::Arc<dyn UserCommandRepositoryInterface + Send + Sync>,
+    id_generator: U,
 }
 
-impl<T, U> CreateUserUseCase<T, U>
+impl<U> CreateUserUseCase<U>
 where
-    T: UserCommandRepositoryInterface + Send + Sync,
     U: Fn() -> UserId + Send + Sync,
 {
-    pub fn new(command_repository: Arc<T>, id_generator: Arc<U>) -> Self {
+    pub fn new(
+        command_repository: std::sync::Arc<dyn UserCommandRepositoryInterface + Send + Sync>,
+        id_generator: U,
+    ) -> Self {
         Self {
             command_repository,
             id_generator,
@@ -45,67 +46,75 @@ where
 }
 
 #[async_trait]
-impl<T, U> CreateUserUsecaseInterface for CreateUserUseCase<T, U>
+impl<U> CreateUserUsecaseInterface for CreateUserUseCase<U>
 where
-    T: UserCommandRepositoryInterface + Send + Sync,
     U: Fn() -> UserId + Send + Sync,
 {
     async fn execute(
         &self,
         request_dto: CreateUserRequestDto,
     ) -> ApplicationResult<UserResponseDto> {
-        // 1. Email重複チェック
-        let email = Email::new(request_dto.email.clone()).map_err(ApplicationError::Domain)?;
-        if self
-            .command_repository
-            .exists_by_email(&email)
-            .await
-            .map_err(|e| ApplicationError::Infrastructure(crate::shared::error::infrastructure_error::InfrastructureError::ResourceUnavailable {
-                resource: "user".to_string(),
-                message: format!("{}", e),
-            }))?
-        {
-            return Err(ApplicationError::EmailAlreadyExists {
-                email: request_dto.email,
-            });
-        }
-
-        // 2. バリューオブジェクト変換
-        let user_id = (self.id_generator)();
-        let email = Email::new(request_dto.email.clone()).map_err(ApplicationError::Domain)?;
-        let name = UserName::new(request_dto.name.clone()).map_err(ApplicationError::Domain)?;
+        // 1. バリデーション＆ドメイン変換
+        let id = (self.id_generator)();
+        let email = crate::domain::value_object::email::Email::new(request_dto.email.clone())
+            .map_err(|e| ApplicationError::ValidationFailed {
+                field: "email".to_string(),
+                message: e.to_string(),
+            })?;
+        let name = crate::domain::value_object::user_name::UserName::new(request_dto.name.clone())
+            .map_err(|e| ApplicationError::ValidationFailed {
+                field: "name".to_string(),
+                message: e.to_string(),
+            })?;
         let password =
-            Password::new(request_dto.password.clone()).map_err(ApplicationError::Domain)?;
-        let phone = match &request_dto.phone {
-            Some(p) => Some(Phone::new(p.clone()).map_err(ApplicationError::Domain)?),
-            None => None,
-        };
-        let birth_date = match &request_dto.birth_date {
-            Some(b) => Some(BirthDate::new(b.clone()).map_err(ApplicationError::Domain)?),
-            None => None,
-        };
+            crate::domain::value_object::password::Password::new(request_dto.password.clone())
+                .map_err(|e| ApplicationError::ValidationFailed {
+                    field: "password".to_string(),
+                    message: e.to_string(),
+                })?;
+        let phone = request_dto
+            .phone
+            .as_ref()
+            .map(|p| crate::domain::value_object::phone::Phone::new(p.clone()))
+            .transpose()
+            .map_err(|e| ApplicationError::ValidationFailed {
+                field: "phone".to_string(),
+                message: e.to_string(),
+            })?;
+        let birth_date = request_dto
+            .birth_date
+            .as_ref()
+            .map(|b| crate::domain::value_object::birth_date::BirthDate::new(b.clone()))
+            .transpose()
+            .map_err(|e| ApplicationError::ValidationFailed {
+                field: "birth_date".to_string(),
+                message: e.to_string(),
+            })?;
 
-        // 3. ドメインエンティティ生成
-        let user = User::new(user_id, email, name, password, phone, birth_date)
-            .map_err(ApplicationError::Domain)?;
+        let user =
+            crate::domain::entity::user::User::new(id, email, name, password, phone, birth_date)
+                .map_err(|e| ApplicationError::InvalidInput {
+                    input: "user".to_string(),
+                    reason: format!("{}", e),
+                })?;
 
-        // 4. 保存
-        self.command_repository
-            .save(&user)
-            .await
-            .map_err(|e| ApplicationError::Infrastructure(crate::shared::error::infrastructure_error::InfrastructureError::ResourceUnavailable {
+        // 2. 保存
+        self.command_repository.save(&user).await.map_err(|e| {
+            ApplicationError::Infrastructure(
+            crate::shared::error::infrastructure_error::InfrastructureError::ResourceUnavailable {
                 resource: "user".to_string(),
                 message: format!("{}", e),
-            }))?;
+            },
+        )
+        })?;
 
-        // 5. レスポンスDTO生成
-        let response = UserResponseDto {
+        // 3. レスポンスDTO生成
+        Ok(UserResponseDto {
             id: user.id.0,
             email: user.email.0,
             name: user.name.0,
             phone: user.phone.map(|p| p.0),
             birth_date: user.birth_date.map(|b| b.0),
-        };
-        Ok(response)
+        })
     }
 }

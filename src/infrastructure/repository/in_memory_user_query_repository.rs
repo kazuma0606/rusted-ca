@@ -4,7 +4,10 @@
 
 use crate::domain::entity::user::User;
 use crate::domain::repository::user_query_repository::UserQueryRepositoryInterface;
-use crate::domain::value_object::{email::Email, pagination::*, user_id::UserId};
+use crate::domain::value_object::{
+    birth_date::BirthDate, email::Email, pagination::*, password::Password, phone::Phone,
+    user_id::UserId, user_name::UserName,
+};
 use crate::infrastructure::database::sqlite_connection::SqliteConnection;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -20,9 +23,50 @@ impl SqliteUserQueryRepository {
     }
 
     fn row_to_user(row: &Row) -> rusqlite::Result<User> {
-        // Userエンティティの構築ロジック
-        // 実際の実装では、value objectの構築も含める
-        todo!("Implement row_to_user conversion")
+        // データベースのカラム順序: id, email, name, password, phone, birth_date, created_at, last_login_at
+        let id: String = row.get(0)?;
+        let email: String = row.get(1)?;
+        let name: String = row.get(2)?;
+        let password: String = row.get(3)?;
+        let phone: Option<String> = row.get(4)?;
+        let birth_date: Option<String> = row.get(5)?;
+
+        // Value Objectの構築
+        let user_id = UserId::new(id);
+        let email_vo =
+            Email::new(email).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
+        let name_vo = UserName::new(name)
+            .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
+        let password_vo = Password::new(password)
+            .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
+
+        let phone_vo = match phone {
+            Some(p) => Some(
+                Phone::new(p).map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?,
+            ),
+            None => None,
+        };
+
+        let birth_date_vo = match birth_date {
+            Some(b) => Some(
+                BirthDate::new(b)
+                    .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?,
+            ),
+            None => None,
+        };
+
+        // Userエンティティの構築
+        let user = User::new(
+            user_id,
+            email_vo,
+            name_vo,
+            password_vo,
+            phone_vo,
+            birth_date_vo,
+        )
+        .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
+
+        Ok(user)
     }
 
     fn count_with_filters(&self, _filters: &UserSearchFilters) -> rusqlite::Result<u64> {
