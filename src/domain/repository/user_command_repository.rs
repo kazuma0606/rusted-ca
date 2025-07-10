@@ -3,7 +3,7 @@
 // 2025/7/8
 
 use crate::domain::entity::user::User;
-use crate::domain::value_object::user_id::UserId;
+use crate::domain::value_object::{email::Email, user_id::UserId};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
@@ -27,4 +27,10 @@ pub trait UserCommandRepositoryInterface: Send + Sync {
         user_id: &UserId,
         login_time: DateTime<Utc>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
+    // 重複チェック用
+    async fn exists_by_email(
+        &self,
+        email: &Email,
+    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>;
 }

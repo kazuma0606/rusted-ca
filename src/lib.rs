@@ -154,9 +154,9 @@ pub mod infrastructure {
         pub mod in_memory_user_query_repository;
         pub mod monitored_repository;
 
-        // pub use in_memory_user_command_repository::*;
-        // pub use in_memory_user_query_repository::*;
-        // pub use monitored_repository::*;
+        pub use in_memory_user_command_repository::*;
+        pub use in_memory_user_query_repository::*;
+        pub use monitored_repository::*;
     }
 
     pub mod cqrs {

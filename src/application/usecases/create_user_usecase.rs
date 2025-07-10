@@ -55,9 +55,10 @@ where
         request_dto: CreateUserRequestDto,
     ) -> ApplicationResult<UserResponseDto> {
         // 1. Email重複チェック
+        let email = Email::new(request_dto.email.clone()).map_err(ApplicationError::Domain)?;
         if self
             .command_repository
-            .find_by_email_for_duplicate_check(&request_dto.email)
+            .exists_by_email(&email)
             .await
             .map_err(|e| ApplicationError::Infrastructure(crate::shared::error::infrastructure_error::InfrastructureError::ResourceUnavailable {
                 resource: "user".to_string(),
