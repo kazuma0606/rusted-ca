@@ -182,6 +182,9 @@ pub mod infrastructure {
         // pub use app_config::*;
         // pub use metrics_config::*;
     }
+    pub mod database {
+        pub mod sqlite_connection;
+    }
 }
 
 // ===== Presentation Layer =====
@@ -241,6 +244,24 @@ pub mod state {
 // pub use application::dto::{CreateUserRequestDto, UserResponseDto};
 // pub use domain::entity::User;
 // pub use domain::value_object::{Email, Password, UserId, UserName};
+// pub use presentation::dto::{ApiResponse, CreateUserRequest, UserResponse};
+// pub use shared::error::{
+// //     ApplicationResult, DomainResult, InfrastructureResult, PresentationResult,
+// // };
+// pub use shared::metrics::{MetricsCollector, end_measurement, start_measurement};
+// pub use state::AppState;
+// pub use presentation::dto::{ApiResponse, CreateUserRequest, UserResponse};
+// pub use shared::error::{
+// //     ApplicationResult, DomainResult, InfrastructureResult, PresentationResult,
+// // };
+// pub use shared::metrics::{MetricsCollector, end_measurement, start_measurement};
+// pub use state::AppState;
+// pub use presentation::dto::{ApiResponse, CreateUserRequest, UserResponse};
+// pub use shared::error::{
+// //     ApplicationResult, DomainResult, InfrastructureResult, PresentationResult,
+// // };
+// pub use shared::metrics::{MetricsCollector, end_measurement, start_measurement};
+// pub use state::AppState;
 // pub use presentation::dto::{ApiResponse, CreateUserRequest, UserResponse};
 // pub use shared::error::{
 // //     ApplicationResult, DomainResult, InfrastructureResult, PresentationResult,
