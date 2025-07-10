@@ -4,25 +4,24 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tokio = { version = "1.45.1", features = ["full"] }
+jsonwebtoken = "9.2"
+axum = "0.7"
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tokio = { version = "1.0", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-async-trait = "0.1"
-# sqlx = { version = "0.7", features = [
-#     "runtime-tokio-rustls",
-#     "sqlite",
-#     "chrono",
-# ] }
-rusqlite = { version = "0.30", features = ["bundled"] }
-uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
-axum = { version = "0.7", features = ["macros"] }
+thiserror = "1.0"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+dotenvy = "0.15"
+async-trait = "0.1"
+rusqlite = { version = "0.30", features = ["bundled"] }
 hyper = { version = "0.14", features = ["server"] }
-tower = "0.4"
-tower-http = { version = "0.5", features = ["cors"] }
+hyper-util = "0.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-thiserror = "1.0"
 
 [dev-dependencies]
 # thiserror = "2.0.12"

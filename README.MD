@@ -10,6 +10,18 @@
 - ✅ **ジェネリック制約**による型安全性の徹底
 - ✅ **Value Objects**によるドメインルール実装
 
+---
+
+## ✅ 2025/7/10時点の実装状況
+
+- **CQRS + Clean Architecture**をRustで実装
+- **In-Memory SQLite**による永続化
+- **DI（依存性注入）**はDIコンテナで一元管理
+- **全CRUD（Create, Read, Update, Delete）API**が動作
+- **全エンドポイントはcurlテストで正常動作確認済み（2025/7/10）**
+
+---
+
 ## 🏗️ アーキテクチャ全体図
 
 ```
@@ -31,6 +43,8 @@
 │  InfrastructureError (Database, Network, ExternalService...)   │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
 
 ## 🔄 CQRS Data Flow
 
@@ -55,6 +69,191 @@ QueryRepository → In-Memory Denormalized Store
     ↓
 UserResponseDto → HTTP Response
 ```
+
+---
+
+## 🚀 実装済みAPIエンドポイント
+
+| メソッド | パス                  | 概要             |
+|----------|----------------------|------------------|
+| POST     | /api/users           | ユーザー作成     |
+| GET      | /api/users/{id}      | ユーザー取得     |
+| PUT      | /api/users/{id}      | ユーザー更新     |
+| DELETE   | /api/users/{id}      | ユーザー削除     |
+
+---
+
+## 🔐 認証方式・認証タイミング
+
+### 認証の仕組み
+
+- 本APIは**JWT（JSON Web Token）による認証**を採用しています。
+- 認証は`src/shared/middleware/auth_middleware.rs`で実装されており、**Axumのextractor型（AuthenticatedUserなど）**として各エンドポイントで利用されます。
+- JWTの発行は`/api/auth/login`で行い、**.envの`AUTH_USER`/`AUTH_PASS`と一致した場合のみトークンが発行**されます。
+- 各APIリクエスト時、`Authorization: Bearer <JWT_TOKEN>`ヘッダーを付与することで認証が行われます。
+
+#### 認証の流れ
+
+1. **ログイン**:  
+   `/api/auth/login`に`{ "username": "...", "password": "..." }`でPOST  
+   → 成功時に`access_token`と`refresh_token`が返る
+
+2. **認証付きAPI呼び出し**:  
+   `Authorization: Bearer <access_token>`を付与して各APIを呼び出す  
+   → トークンの有効性・有効期限・ロール（role）をextractorで自動判定
+
+3. **認証失敗時**:  
+   401/403エラー（`INVALID_TOKEN`や`INSUFFICIENT_PERMISSIONS`等）が返る
+
+#### 実装ファイル・認証タイミング
+
+- **JWT認証ロジック**:  
+  `src/shared/middleware/auth_middleware.rs`  
+  - `AuthenticatedUser`型: 通常認証
+  - `AdminUser`型: 管理者認証
+  - `SuperAdminUser`型: スーパ管理者認証
+  - `OptionalAuth`型: 任意認証
+
+- **認証タイミング**:  
+  - 各ルーター（例: `src/presentation/router/user_router.rs`）でextractor型をシグネチャに指定  
+  - コントローラの引数で`auth: AuthenticatedUser`等を受け取ることで**リクエスト毎に自動認証**
+
+---
+
+## 🚩 認証が必要なエンドポイント一覧
+
+| メソッド | パス                | 認証要否         | 備考                       |
+|----------|--------------------|------------------|----------------------------|
+| POST     | /api/users         | 必須（JWT）      | ユーザー作成               |
+| GET      | /api/users/{id}    | 必須（JWT）      | ユーザー取得               |
+| PUT      | /api/users/{id}    | 必須（JWT）      | ユーザー更新               |
+| DELETE   | /api/users/{id}    | 必須（JWT）      | ユーザー削除               |
+| POST     | /api/auth/login    | 不要             | JWT発行（ログイン）        |
+
+> **注意:**  
+> - `/api/users`系は**全てJWT認証必須**です。  
+> - `Authorization: Bearer <access_token>`ヘッダーが必要です。  
+> - `/api/auth/login`のみ認証不要です（ここでトークンを取得）。
+
+---
+
+### curl例（認証付き）
+
+```sh
+# 1. ログインしてJWT取得
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "your_user", "password": "your_pass"}'
+
+# 2. 認証付きでユーザー取得
+curl http://localhost:3000/api/users/{USER_ID} \
+  -H "Authorization: Bearer <access_token>"
+```
+
+---
+
+### 補足
+
+- JWTの`role`により将来的に**管理者専用API**（例: `/api/metrics`等）も制御可能です。
+- 認証失敗時は`401 Unauthorized`や`403 Forbidden`が返ります。
+
+---
+
+## 🧪 curlコマンドによる検証方法
+
+#### 1. ユーザー作成
+```sh
+curl -X POST http://localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john.doe@example.com",
+    "name": "John Doe",
+    "password": "TestPassword123!",
+    "phone": "+81-90-1111-2222",
+    "birth_date": "1990-01-01"
+  }'
+```
+
+#### 2. ユーザー取得
+```sh
+curl http://localhost:3000/api/users/{USER_ID}
+```
+
+#### 3. ユーザー更新
+```sh
+curl -X PUT http://localhost:3000/api/users/{USER_ID} \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated User",
+    "phone": "+81-90-3333-4444"
+  }'
+```
+
+#### 4. ユーザー削除（削除したユーザー情報が返る）
+```sh
+curl -X DELETE http://localhost:3000/api/users/{USER_ID}
+```
+**レスポンス例:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "xxxx-xxxx-xxxx-xxxx",
+    "email": "john.doe@example.com",
+    "name": "John Doe",
+    "phone": "+81-90-1111-2222",
+    "birth_date": "1990-01-01",
+    "created_at": "...",
+    "updated_at": "..."
+  },
+  "message": "User deleted successfully",
+  "request_id": "req_xxx",
+  "processing_time_ms": 0
+}
+```
+
+#### 5. 削除後の取得（404エラー）
+```sh
+curl http://localhost:3000/api/users/{USER_ID}
+```
+
+---
+
+## 🏆 テスト結果
+
+- 2025/7/10時点で全APIエンドポイントのcurlテストが**全て成功**しています。
+
+---
+
+## 🧩 DI（依存性注入）・CQRS戦略
+
+- **DIコンテナ**で全てのRepository/UseCase/Controllerを一元管理
+- **Application層**はRepositoryのトレイトに依存し、インフラ実装はDIで注入
+- **CQRS**はCommand/QueryでRepository/UseCaseを分離
+- **Axum**のルーターはControllerをDI経由で受け取り、各APIエンドポイントにマッピング
+
+---
+
+## 🗺️ Mermaid図：DIの依存方向
+
+```mermaid
+graph TD
+    A[Axum Router] --> B[UserController]
+    B --> C1[CreateUserUseCase]
+    B --> C2[GetUserUseCase]
+    B --> C3[UpdateUserUseCase]
+    B --> C4[DeleteUserUseCase]
+    C1 --> D1[UserCommandRepository]
+    C1 --> D2[IdGenerator]
+    C2 --> E1[UserQueryRepository]
+    C3 --> D1
+    C3 --> E1
+    C4 --> D1
+    C4 --> E1
+    D1 & E1 --> F[SqliteConnection]
+```
+
+---
 
 ## 📋 完全な型定義
 
@@ -87,6 +286,8 @@ where
     U: IdGeneratorInterface + Send + Sync,
     V: EmailServiceInterface + Send + Sync,
 ```
+
+---
 
 ## 🏛️ Layer Definitions
 
@@ -161,6 +362,8 @@ async fn create_user<T: CreateUserUsecaseInterface>(
 ) -> PresentationResult<Json<ApiResponse<UserResponse>>>
 ```
 
+---
+
 ## 🔧 DI Pattern (Lightning方式)
 
 ### 直接注入パターン
@@ -188,6 +391,8 @@ async fn setup_dependencies() -> AppState {
 }
 ```
 
+---
+
 ## 📐 SOLID Principles Implementation
 
 ### Single Responsibility Principle
@@ -198,149 +403,3 @@ async fn setup_dependencies() -> AppState {
 
 ### Open/Closed Principle
 - 新しいRepository実装追加可能
-- 新しいUseCase追加可能
-- 既存コード変更なしで拡張
-
-### Liskov Substitution Principle
-- Repository trait実装の差し替え可能
-- TestでMockに差し替え可能
-
-### Interface Segregation Principle
-- CommandRepository / QueryRepository 分離
-- UseCase別のInterface分離
-
-### Dependency Inversion Principle
-- Application → Domain ← Infrastructure
-- 抽象に依存、具象に依存しない
-
-## 🎨 Value Objects Pattern
-
-### ドメインルール実装
-```rust
-impl Email {
-    pub fn new(value: String) -> DomainResult<Self> {
-        // バリデーションロジック
-        // 正規表現チェック
-        // ビジネスルール適用
-    }
-}
-
-impl Password {
-    pub fn from_plain(plain: String) -> DomainResult<Self> {
-        // 強度チェック
-        // bcryptハッシュ化
-        // セキュリティルール適用
-    }
-}
-```
-
-## 🔄 Type Conversion Matrix
-
-| From → To | Layer Boundary | Purpose |
-|-----------|----------------|---------|
-| `CreateUserRequest` → `CreateUserCommand` | Presentation → Application | HTTP境界分離 |
-| `CreateUserCommand` → `User` | Application → Domain | ビジネスルール適用 |
-| `User` → `UserReadModel` | Domain → Infrastructure | 永続化形式変換 |
-| `UserReadModel` → `UserResponse` | Infrastructure → Presentation | HTTP出力変換 |
-
-## 🧪 Testing Strategy
-
-### Unit Tests
-```rust
-// Domain Layer Test
-#[test]
-fn email_new_should_validate_format() {
-    assert_eq!(
-        Email::new("invalid".to_string()),
-        Err(DomainError::InvalidEmail { ... })
-    );
-}
-
-// Application Layer Test (Mock)
-#[tokio::test] 
-async fn create_user_should_fail_when_email_exists() {
-    let mock_repo = MockUserRepository::new();
-    mock_repo.expect_find_by_email().returning(|_| Ok(true));
-    
-    let usecase = CreateUserUseCase::new(Arc::new(mock_repo));
-    let result = usecase.execute(command).await;
-    
-    assert_eq!(result, Err(ApplicationError::EmailAlreadyExists { ... }));
-}
-```
-
-### Integration Tests
-```rust
-// Full API Test
-#[tokio::test]
-async fn create_user_api_should_return_201() {
-    let app = create_test_app().await;
-    
-    let response = app
-        .post("/api/users")
-        .json(&create_user_request())
-        .await;
-        
-    assert_eq!(response.status(), 201);
-    // Response validation
-}
-```
-
-## 🚀 Implementation Phases
-
-### Phase 1: Domain Foundation (45min)
-1. **Error Types**: 層別Result型定義
-2. **Value Objects**: Email, UserName, Password
-3. **Entity**: User + ビジネスメソッド
-4. **Repository Traits**: Command/Query分離
-
-### Phase 2: Application Services (60min)
-5. **Command/Query Objects**: CQRS型定義
-6. **UseCase Implementation**: ジェネリック制約
-7. **DTO Definitions**: 型変換実装
-8. **Error Conversion**: 自動変換テスト
-
-### Phase 3: Infrastructure (45min)
-9. **In-Memory Command Repository**: Write最適化
-10. **In-Memory Query Repository**: Read最適化  
-11. **Test Data Seeding**: 初期データ投入
-12. **CQRS Synchronization**: Read/Write同期
-
-### Phase 4: Presentation (45min)
-13. **HTTP DTOs**: Request/Response
-14. **Controllers**: エラーハンドリング
-15. **Router Setup**: エンドポイント定義
-16. **Status Code Mapping**: HTTP応答
-
-### Phase 5: Integration (30min)
-17. **DI Setup**: Lightning方式
-18. **End-to-End Test**: 全フロー確認
-19. **API Documentation**: エンドポイント仕様
-20. **Performance Validation**: 動作速度確認
-
-**Total: 3.5 hours**
-
-## ✨ Unique Features of Rusted CA
-
-### 🦀 **Rustの特性活用**
-- **所有権システム**: メモリ安全性
-- **型システム**: コンパイル時エラー検出
-- **ジェネリクス**: 型安全なDI
-- **トレイト**: 適切な抽象化
-
-### 🎨 **CAの美しさ**
-- **In-Memory CQRS**: 純粋なアーキテクチャ
-- **層別Result型**: エラー発生源明確化
-- **Value Objects**: ドメインルール実装
-- **依存性逆転**: 完全な層分離
-
-### ⚡ **開発効率**
-- **Lightning成功パターン**: 実証済みDI
-- **段階的実装**: 確実な進行
-- **即座の動作確認**: In-Memory利点
-- **Future PostgreSQL**: 容易な移行
-
----
-
-**これが真のRusted Clean Architecture！**  
-**Rustの美しさとCAの理想が融合した、完璧な設計です！** 🎯🦀✨

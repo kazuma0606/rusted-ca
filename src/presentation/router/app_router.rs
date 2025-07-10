@@ -7,6 +7,7 @@ use crate::application::usecases::delete_user_usecase::DeleteUserUsecaseInterfac
 use crate::application::usecases::get_user_usecase::GetUserQueryUsecaseInterface;
 use crate::application::usecases::update_user_usecase::UpdateUserUsecaseInterface;
 use crate::presentation::controller::user_controller::UserController;
+use crate::presentation::router::auth_router::create_auth_routes;
 use crate::presentation::router::user_router::create_user_routes;
 use axum::{Json, Router, routing::get};
 use std::sync::Arc;
@@ -37,4 +38,5 @@ where
             }),
         )
         .nest("/api", create_user_routes(user_controller))
+        .nest("/api", create_auth_routes())
 }

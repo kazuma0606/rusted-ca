@@ -40,6 +40,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("🚀 Server starting on {}", addr);
     println!("📋 利用可能なエンドポイント:");
+    println!("  - POST /api/auth/login - ログイン(ユーザー認証)");
     println!("  - GET  /health - ヘルスチェック");
     println!("  - GET  /api/health - APIヘルスチェック");
     println!("  - POST /api/users - ユーザー作成");

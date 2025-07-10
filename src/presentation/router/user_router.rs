@@ -7,6 +7,8 @@ use crate::application::usecases::delete_user_usecase::DeleteUserUsecaseInterfac
 use crate::application::usecases::get_user_usecase::GetUserQueryUsecaseInterface;
 use crate::application::usecases::update_user_usecase::UpdateUserUsecaseInterface;
 use crate::presentation::controller::user_controller::UserController;
+use crate::shared::middleware::auth_middleware::{AdminUser, AuthenticatedUser};
+use axum::middleware::from_fn;
 use axum::{
     Router,
     routing::{delete, get, post, put},
@@ -31,9 +33,9 @@ where
             "/users",
             post({
                 let controller = controller.clone();
-                move |request| {
+                move |auth: AuthenticatedUser, request| {
                     let controller = controller.clone();
-                    async move { controller.create_user(request).await }
+                    async move { controller.create_user(auth, request).await }
                 }
             }),
         )
@@ -51,9 +53,9 @@ where
             "/users/:id",
             put({
                 let controller = controller.clone();
-                move |path, body| {
+                move |auth: AuthenticatedUser, path, body| {
                     let controller = controller.clone();
-                    async move { controller.update_user(path, body).await }
+                    async move { controller.update_user(auth, path, body).await }
                 }
             }),
         )
@@ -61,9 +63,9 @@ where
             "/users/:id",
             delete({
                 let controller = controller.clone();
-                move |path| {
+                move |auth: AuthenticatedUser, path| {
                     let controller = controller.clone();
-                    async move { controller.delete_user(path).await }
+                    async move { controller.delete_user(auth, path).await }
                 }
             }),
         )

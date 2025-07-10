@@ -95,6 +95,7 @@ where
     /// POST /api/users - ユーザー作成
     pub async fn create_user(
         &self,
+        _auth: crate::shared::middleware::auth_middleware::AuthenticatedUser,
         JsonRequest(request): JsonRequest<CreateUserRequest>,
     ) -> Result<(StatusCode, Json<ApiResponse<UserResponse>>), (StatusCode, Json<Value>)> {
         // 1. プレゼンテーション層でのバリデーション
@@ -209,6 +210,7 @@ where
     /// PUT /api/users/{id} - ユーザー更新
     pub async fn update_user(
         &self,
+        _auth: crate::shared::middleware::auth_middleware::AuthenticatedUser,
         Path(user_id): Path<String>,
         JsonRequest(request): JsonRequest<UpdateUserRequest>,
     ) -> Result<(StatusCode, Json<ApiResponse<UserResponse>>), (StatusCode, Json<Value>)> {
@@ -286,6 +288,7 @@ where
     /// DELETE /api/users/{id} - ユーザー削除
     pub async fn delete_user(
         &self,
+        _auth: crate::shared::middleware::auth_middleware::AuthenticatedUser,
         Path(user_id): Path<String>,
     ) -> Result<(StatusCode, Json<ApiResponse<UserResponse>>), (StatusCode, Json<Value>)> {
         // 1. UUID形式チェック
