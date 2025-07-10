@@ -33,6 +33,7 @@
 use crate::application::dto::user_request_dto::{CreateUserRequestDto, UpdateUserRequestDto};
 use crate::application::dto::user_response_dto::UserResponseDto;
 use crate::application::usecases::create_user_usecase::CreateUserUsecaseInterface;
+use crate::application::usecases::delete_user_usecase::DeleteUserUsecaseInterface;
 use crate::application::usecases::get_user_usecase::GetUserQueryUsecaseInterface;
 use crate::application::usecases::update_user_usecase::UpdateUserUsecaseInterface;
 use crate::presentation::dto::api_response::ApiResponse;
@@ -57,32 +58,37 @@ use std::sync::Arc;
 /// 3. UseCase実行
 /// 4. Application DTOからPresentation DTOへの変換
 /// 5. HTTPレスポンスの生成（ステータスコード + JSON）
-pub struct UserController<T, U, V>
+pub struct UserController<T, U, V, W>
 where
     T: CreateUserUsecaseInterface + Send + Sync,
     U: GetUserQueryUsecaseInterface + Send + Sync,
     V: UpdateUserUsecaseInterface + Send + Sync,
+    W: DeleteUserUsecaseInterface + Send + Sync,
 {
     create_user_usecase: Arc<T>,
     get_user_usecase: Arc<U>,
     update_user_usecase: Arc<V>,
+    delete_user_usecase: Arc<W>,
 }
 
-impl<T, U, V> UserController<T, U, V>
+impl<T, U, V, W> UserController<T, U, V, W>
 where
     T: CreateUserUsecaseInterface + Send + Sync,
     U: GetUserQueryUsecaseInterface + Send + Sync,
     V: UpdateUserUsecaseInterface + Send + Sync,
+    W: DeleteUserUsecaseInterface + Send + Sync,
 {
     pub fn new(
         create_user_usecase: Arc<T>,
         get_user_usecase: Arc<U>,
         update_user_usecase: Arc<V>,
+        delete_user_usecase: Arc<W>,
     ) -> Self {
         Self {
             create_user_usecase,
             get_user_usecase,
             update_user_usecase,
+            delete_user_usecase,
         }
     }
 
@@ -270,6 +276,61 @@ where
             }
             Err(error) => {
                 // 7. エラーハンドリング
+                let (status_code, error_response) =
+                    self.map_application_error_to_http_response(error);
+                Err((status_code, Json(error_response)))
+            }
+        }
+    }
+
+    /// DELETE /api/users/{id} - ユーザー削除
+    pub async fn delete_user(
+        &self,
+        Path(user_id): Path<String>,
+    ) -> Result<(StatusCode, Json<ApiResponse<UserResponse>>), (StatusCode, Json<Value>)> {
+        // 1. UUID形式チェック
+        if !self.is_valid_uuid(&user_id) {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "success": false,
+                    "error": {
+                        "code": "INVALID_UUID",
+                        "message": "Invalid user ID format"
+                    }
+                })),
+            ));
+        }
+
+        // 2. Presentation DTO → Application DTO 変換
+        let app_request =
+            crate::application::dto::user_request_dto::DeleteUserRequestDto { id: user_id };
+
+        // 3. UseCase実行
+        match self.delete_user_usecase.execute(app_request).await {
+            Ok(app_response) => {
+                // 4. Application DTO → Presentation DTO 変換
+                let presentation_response = UserResponse {
+                    id: app_response.id,
+                    email: app_response.email,
+                    name: app_response.name,
+                    phone: app_response.phone,
+                    birth_date: app_response.birth_date,
+                    created_at: chrono::Utc::now().to_rfc3339(),
+                    updated_at: chrono::Utc::now().to_rfc3339(),
+                };
+                Ok((
+                    StatusCode::OK,
+                    Json(ApiResponse {
+                        success: true,
+                        data: Some(presentation_response),
+                        message: "User deleted successfully".to_string(),
+                        request_id: format!("req_{}", uuid::Uuid::new_v4()),
+                        processing_time_ms: 0,
+                    }),
+                ))
+            }
+            Err(error) => {
                 let (status_code, error_response) =
                     self.map_application_error_to_http_response(error);
                 Err((status_code, Json(error_response)))

@@ -1,9 +1,10 @@
 //application/dto/user_request_dto.rs
-// HTTP Request DTO
+// ユーザーリクエストDTO
 // 2025/7/8
 
 use serde::{Deserialize, Serialize};
 
+/// ユーザー作成リクエストDTO
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateUserRequestDto {
     pub email: String,
@@ -45,4 +46,10 @@ impl UpdateUserRequestDto {
             self.birth_date.clone(),
         )
     }
+}
+
+/// ユーザー削除リクエストDTO
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteUserRequestDto {
+    pub id: String,
 }

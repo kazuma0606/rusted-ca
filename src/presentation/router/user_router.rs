@@ -3,12 +3,13 @@
 // 2025/7/8
 
 use crate::application::usecases::create_user_usecase::CreateUserUsecaseInterface;
+use crate::application::usecases::delete_user_usecase::DeleteUserUsecaseInterface;
 use crate::application::usecases::get_user_usecase::GetUserQueryUsecaseInterface;
 use crate::application::usecases::update_user_usecase::UpdateUserUsecaseInterface;
 use crate::presentation::controller::user_controller::UserController;
 use axum::{
     Router,
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
 };
 use std::sync::Arc;
 
@@ -18,11 +19,12 @@ use std::sync::Arc;
 /// 1. Axumルーターの設定
 /// 2. エンドポイントとControllerメソッドのマッピング
 /// 3. クロージャでのController呼び出し
-pub fn create_user_routes<T, U, V>(controller: Arc<UserController<T, U, V>>) -> Router
+pub fn create_user_routes<T, U, V, W>(controller: Arc<UserController<T, U, V, W>>) -> Router
 where
     T: CreateUserUsecaseInterface + Send + Sync + 'static,
     U: GetUserQueryUsecaseInterface + Send + Sync + 'static,
     V: UpdateUserUsecaseInterface + Send + Sync + 'static,
+    W: DeleteUserUsecaseInterface + Send + Sync + 'static,
 {
     Router::new()
         .route(
@@ -52,6 +54,16 @@ where
                 move |path, body| {
                     let controller = controller.clone();
                     async move { controller.update_user(path, body).await }
+                }
+            }),
+        )
+        .route(
+            "/users/:id",
+            delete({
+                let controller = controller.clone();
+                move |path| {
+                    let controller = controller.clone();
+                    async move { controller.delete_user(path).await }
                 }
             }),
         )

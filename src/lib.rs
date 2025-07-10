@@ -212,6 +212,7 @@ pub mod presentation {
     pub mod dto {
         pub mod api_response;
         pub mod create_user_request;
+        pub mod delete_user_request;
         pub mod login_request;
         pub mod login_response;
         pub mod metrics_response;
@@ -220,6 +221,7 @@ pub mod presentation {
 
         // pub use api_response::*;
         // pub use create_user_request::*;
+        // pub use delete_user_request::*;
         // pub use login_request::*;
         // pub use login_response::*;
         // pub use metrics_response::*;

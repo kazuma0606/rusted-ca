@@ -3,6 +3,7 @@
 // 2025/7/8
 
 use crate::application::usecases::create_user_usecase::CreateUserUsecaseInterface;
+use crate::application::usecases::delete_user_usecase::DeleteUserUsecaseInterface;
 use crate::application::usecases::get_user_usecase::GetUserQueryUsecaseInterface;
 use crate::application::usecases::update_user_usecase::UpdateUserUsecaseInterface;
 use crate::presentation::controller::user_controller::UserController;
@@ -16,11 +17,12 @@ use std::sync::Arc;
 /// 1. 全ルーターの統合
 /// 2. ヘルスチェックエンドポイント
 /// 3. APIプレフィックスの設定
-pub fn create_app_router<T, U, V>(user_controller: Arc<UserController<T, U, V>>) -> Router
+pub fn create_app_router<T, U, V, W>(user_controller: Arc<UserController<T, U, V, W>>) -> Router
 where
     T: CreateUserUsecaseInterface + Send + Sync + 'static,
     U: GetUserQueryUsecaseInterface + Send + Sync + 'static,
     V: UpdateUserUsecaseInterface + Send + Sync + 'static,
+    W: DeleteUserUsecaseInterface + Send + Sync + 'static,
 {
     Router::new()
         .route("/health", get(|| async { "OK" }))

@@ -45,6 +45,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("  - POST /api/users - ユーザー作成");
     println!("  - GET  /api/users/:id - ユーザー取得");
     println!("  - PUT  /api/users/:id - ユーザー更新");
+    println!("  - DELETE /api/users/:id - ユーザー削除");
 
     serve(listener, app).await?;
 
