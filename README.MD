@@ -5,7 +5,7 @@
 このテンプレートを使い始めるには、以下の手順を参考にしてください。
 
 1. **リポジトリをクローン**
-    ```sh
+```sh
 git clone https://github.com/kazuma0606/rusted-ca.git
 cd rusted-ca/rusted-ca
 ```
@@ -13,13 +13,13 @@ cd rusted-ca/rusted-ca
     - [Rust公式サイト](https://www.rust-lang.org/tools/install) の手順で `rustup` を導入
     - 推奨: 最新の stable チャンネル
 3. **依存クレートの取得**
-    ```sh
+```sh
 cargo fetch
 ```
 4. **.envファイルの作成**
     - プロジェクトルート（Cargo.tomlと同じディレクトリ）に `.env` を作成し、必要な環境変数を記載
     - Discord通知を使わない場合は `DISCORD_ENABLED=false` でOK
-    ```
+```
 DISCORD_WEBHOOK_URL=（必要に応じて）
 DISCORD_SERVER_NAME=rusted-ca-dev
 DISCORD_ENABLED=true
@@ -28,7 +28,7 @@ DISCORD_TIMEOUT=5
 5. **DB初期化（SQLite.inmemory）**
     - 初回起動時に自動生成されます。手動でDBファイルを用意する必要はありません。
 6. **サーバー起動**
-    ```sh
+```sh
 cargo run
 ```
     - デフォルトで `localhost:3000` でAPIが起動します。
