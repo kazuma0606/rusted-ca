@@ -1,5 +1,5 @@
 use crate::infrastructure::config::app_config::DiscordConfig;
-use crate::shared::notification::discord_notification::notify_error;
+use crate::shared::notification::discord_notification::{notify_app_startup, notify_error};
 use axum::{
     body::Body,
     extract::State,
@@ -35,4 +35,11 @@ pub async fn discord_notification_middleware(
         });
     }
     response
+}
+
+/// 起動時Discord通知（必要な場合のみapp_routerから呼び出す）
+pub async fn try_notify_startup(config: Arc<DiscordConfig>) {
+    if config.enabled {
+        let _ = notify_app_startup(&config).await;
+    }
 }

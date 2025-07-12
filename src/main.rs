@@ -4,7 +4,6 @@
 
 use rusted_ca::infrastructure::config::app_config::AppConfig;
 use rusted_ca::infrastructure::web::run::run;
-// use rusted_ca::shared::notification::discord_notification::notify_app_startup;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -25,28 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("  - Discord通知: リアルタイム監視・アラート");
 
     // アプリケーション設定を読み込み
-    let app_config = AppConfig::from_env();
-    println!("DEBUG: DISCORD_ENABLED = {}", app_config.discord.enabled);
-    println!(
-        "DEBUG: DISCORD_WEBHOOK_URL = {}",
-        app_config.discord.webhook_url
-    );
-    println!(
-        "DEBUG: DISCORD_SERVER_NAME = {}",
-        app_config.discord.server_name
-    );
-
-    // Discord通知を送信（起動時通知は一旦コメントアウト）
-    /*
-    if app_config.discord.enabled {
-        println!("DEBUG: notify_app_startup will be called");
-        if let Err(e) = notify_app_startup(&app_config.discord).await {
-            eprintln!("Failed to send Discord startup notification: {}", e);
-        }
-    } else {
-        println!("DEBUG: notify_app_startup will NOT be called");
-    }
-    */
+    let _app_config = AppConfig::from_env();
 
     // HTTP + gRPC統合サーバーを起動
     run().await?;

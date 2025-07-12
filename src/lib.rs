@@ -163,7 +163,7 @@ pub mod infrastructure {
 
         pub use in_memory_user_command_repository::*;
         pub use in_memory_user_query_repository::*;
-        pub use monitored_repository::*;
+        // pub use monitored_repository::*;
     }
 
     pub mod cqrs {
@@ -206,6 +206,10 @@ pub mod infrastructure {
     pub mod grpc {
         pub mod hello_service;
         pub mod server;
+    }
+
+    pub mod utils {
+        pub mod graceful_shutdown;
     }
 }
 

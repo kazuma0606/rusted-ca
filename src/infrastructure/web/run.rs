@@ -13,6 +13,7 @@ use std::sync::Arc;
 use crate::infrastructure::config::app_config::AppConfig;
 use crate::infrastructure::di::container::DIContainer;
 use crate::infrastructure::grpc::server::create_grpc_router;
+use crate::infrastructure::utils::graceful_shutdown::shutdown_signal;
 use crate::presentation::router::app_router::create_app_router;
 
 /// Webサーバーを起動する
@@ -61,7 +62,9 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("  - POST /grpc/hello - gRPC Hello Service (Protocol Buffers)");
     println!("  - Discord通知: エラー発生時に自動通知");
 
-    serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
 
     Ok(())
 }
