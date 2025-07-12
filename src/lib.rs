@@ -68,6 +68,10 @@ pub mod domain {
         // pub use user::*;
     }
 
+    pub mod entity_sqlx {
+        pub mod user_sqlx;
+    }
+
     pub mod value_object {
         pub mod birth_date;
         pub mod email;
@@ -133,6 +137,7 @@ pub mod application {
     }
 
     pub mod usecases {
+        pub mod create_user_sqlx_usecase;
         pub mod create_user_usecase;
         pub mod delete_user_usecase;
         pub mod get_user_usecase;
@@ -161,6 +166,9 @@ pub mod infrastructure {
         pub mod in_memory_user_command_repository;
         pub mod in_memory_user_query_repository;
         pub mod monitored_repository;
+        pub mod redis_user_sqlx_repository;
+        pub mod sync_user_sqlx_repository;
+        pub mod tidb_user_sqlx_repository;
 
         pub use in_memory_user_command_repository::*;
         pub use in_memory_user_query_repository::*;
@@ -238,7 +246,9 @@ pub mod presentation {
         pub mod login_response;
         pub mod metrics_response;
         pub mod update_user_request;
+        pub mod user_create_request_sqlx;
         pub mod user_response;
+        pub mod user_response_sqlx;
 
         // pub use api_response::*;
         // pub use create_user_request::*;
