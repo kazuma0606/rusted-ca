@@ -32,6 +32,7 @@ pub mod shared {
     pub mod middleware {
         pub mod auth_middleware;
         pub mod cors_middleware;
+        pub mod discord_middleware;
         pub mod metrics_middleware;
         pub mod watch_middleware;
 
@@ -49,6 +50,12 @@ pub mod shared {
         // pub use date_time_utils::*;
         // pub use password_hasher::*;
         // pub use uuid_generator::*;
+    }
+
+    pub mod notification {
+        pub mod discord_notification;
+
+        // pub use discord_notification::*;
     }
 }
 

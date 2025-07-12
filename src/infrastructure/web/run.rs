@@ -10,6 +10,7 @@ use axum::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use crate::infrastructure::config::app_config::AppConfig;
 use crate::infrastructure::di::container::DIContainer;
 use crate::infrastructure::grpc::server::create_grpc_router;
 use crate::presentation::router::app_router::create_app_router;
@@ -32,9 +33,13 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let test_id = id_generator();
     println!("✅ ID生成器のテストが完了しました: {}", test_id.0);
 
-    // 5. ルーティング設定（HTTP + gRPC統合）
+    // 5. アプリケーション設定の読み込み
+    let app_config = AppConfig::from_env();
+    let discord_config = Arc::new(app_config.discord);
+
+    // 6. ルーティング設定（HTTP + gRPC統合）
     let user_controller = di_container.build_user_controller()?;
-    let http_router = create_app_router(user_controller);
+    let http_router = create_app_router(user_controller, discord_config);
     let grpc_router = create_grpc_router();
 
     // HTTPとgRPCルーターを統合
@@ -54,6 +59,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("  - DELETE /api/users/:id - ユーザー削除");
     println!("  - GET  /api/fortune - ランダム癒し系おみくじ");
     println!("  - POST /grpc/hello - gRPC Hello Service (Protocol Buffers)");
+    println!("  - Discord通知: エラー発生時に自動通知");
 
     serve(listener, app).await?;
 

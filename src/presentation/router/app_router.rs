@@ -6,11 +6,13 @@ use crate::application::usecases::create_user_usecase::CreateUserUsecaseInterfac
 use crate::application::usecases::delete_user_usecase::DeleteUserUsecaseInterface;
 use crate::application::usecases::get_user_usecase::GetUserQueryUsecaseInterface;
 use crate::application::usecases::update_user_usecase::UpdateUserUsecaseInterface;
+use crate::infrastructure::config::app_config::DiscordConfig;
 use crate::presentation::controller::user_controller::UserController;
 use crate::presentation::router::auth_router::create_auth_routes;
 use crate::presentation::router::fortune_router::create_fortune_routes;
 use crate::presentation::router::grpc_router::create_grpc_routes;
 use crate::presentation::router::user_router::create_user_routes;
+use crate::shared::middleware::discord_middleware::discord_notification_middleware;
 use crate::shared::middleware::watch_middleware;
 use axum::{Json, Router, middleware, routing::get};
 use std::sync::Arc;
@@ -22,7 +24,10 @@ use std::sync::Arc;
 /// 2. ヘルスチェックエンドポイント
 /// 3. APIプレフィックスの設定
 /// 4. ログ・メトリクス収集ミドルウェア
-pub fn create_app_router<T, U, V, W>(user_controller: Arc<UserController<T, U, V, W>>) -> Router
+pub fn create_app_router<T, U, V, W>(
+    user_controller: Arc<UserController<T, U, V, W>>,
+    discord_config: Arc<DiscordConfig>,
+) -> Router
 where
     T: CreateUserUsecaseInterface + Send + Sync + 'static,
     U: GetUserQueryUsecaseInterface + Send + Sync + 'static,
@@ -46,4 +51,8 @@ where
         .nest("/api", create_fortune_routes())
         .nest("/api", create_grpc_routes())
         .layer(middleware::from_fn(watch_middleware::watch_middleware))
+    // .layer(middleware::from_fn_with_state(
+    //     discord_config,
+    //     discord_notification_middleware,
+    // ))
 }

@@ -11,9 +11,12 @@
 use axum::Router;
 use dotenvy::dotenv;
 use reqwest::StatusCode;
+use rusted_ca::infrastructure::config::app_config::DiscordConfig;
 use rusted_ca::infrastructure::di::container::DIContainer;
 use rusted_ca::presentation::router::app_router::create_app_router;
 use serde_json::json;
+use std::sync::Arc;
+use std::time::Duration;
 
 type TestAddr = std::net::SocketAddr;
 
@@ -39,12 +42,22 @@ fn init_env() {
     }
 }
 
+// テスト用のダミーDiscordConfig
+fn dummy_discord_config() -> Arc<DiscordConfig> {
+    Arc::new(DiscordConfig {
+        webhook_url: String::new(),
+        server_name: "test-server".to_string(),
+        enabled: false,
+        timeout: Duration::from_secs(1),
+    })
+}
+
 #[tokio::test]
 async fn test_login_success() {
     init_env();
     let di = DIContainer::new();
     let user_controller = di.build_user_controller().unwrap();
-    let app = create_app_router(user_controller);
+    let app = create_app_router(user_controller, dummy_discord_config());
     let addr = spawn_test_server(app).await;
     let client = reqwest::Client::new();
     let res = client
@@ -63,7 +76,7 @@ async fn test_login_fail() {
     init_env();
     let di = DIContainer::new();
     let user_controller = di.build_user_controller().unwrap();
-    let app = create_app_router(user_controller);
+    let app = create_app_router(user_controller, dummy_discord_config());
     let addr = spawn_test_server(app).await;
     let client = reqwest::Client::new();
     let res = client
@@ -80,7 +93,7 @@ async fn test_create_user_with_auth() {
     init_env();
     let di = DIContainer::new();
     let user_controller = di.build_user_controller().unwrap();
-    let app = create_app_router(user_controller);
+    let app = create_app_router(user_controller, dummy_discord_config());
     let addr = spawn_test_server(app).await;
     let client = reqwest::Client::new();
     // まずログインしてトークン取得
@@ -114,7 +127,7 @@ async fn test_create_user_without_auth() {
     init_env();
     let di = DIContainer::new();
     let user_controller = di.build_user_controller().unwrap();
-    let app = create_app_router(user_controller);
+    let app = create_app_router(user_controller, dummy_discord_config());
     let addr = spawn_test_server(app).await;
     let client = reqwest::Client::new();
     let res = client
