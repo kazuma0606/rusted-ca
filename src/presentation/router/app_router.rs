@@ -12,6 +12,7 @@ use crate::presentation::router::auth_router::create_auth_routes;
 use crate::presentation::router::fortune_router::create_fortune_routes;
 use crate::presentation::router::grpc_router::create_grpc_routes;
 use crate::presentation::router::user_router::create_user_routes;
+use crate::shared::middleware::cors_middleware::build_cors_layer;
 use crate::shared::middleware::discord_middleware::{
     discord_notification_middleware, try_notify_startup,
 };
@@ -37,7 +38,7 @@ where
     W: DeleteUserUsecaseInterface + Send + Sync + 'static,
 {
     // 起動時Discord通知（必要な場合はコメント解除）
-    tokio::spawn(try_notify_startup(discord_config.clone()));
+    // tokio::spawn(try_notify_startup(discord_config.clone()));
 
     Router::new()
         .route("/health", get(|| async { "OK" }))
@@ -55,6 +56,7 @@ where
         .nest("/api", create_auth_routes())
         .nest("/api", create_fortune_routes())
         .nest("/api", create_grpc_routes())
+        .layer(build_cors_layer())
         .layer(middleware::from_fn(watch_middleware::watch_middleware))
         .layer(middleware::from_fn_with_state(
             discord_config,

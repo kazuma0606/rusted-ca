@@ -209,6 +209,7 @@ pub mod infrastructure {
     }
 
     pub mod utils {
+        pub mod cors_settings;
         pub mod graceful_shutdown;
     }
 }
