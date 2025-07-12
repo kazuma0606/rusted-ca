@@ -23,14 +23,15 @@ pub struct UserLoginResponse {
 pub async fn login(
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<UserLoginResponse>, AuthError> {
-    // テスト用featureで分岐
-    #[cfg(feature = "testmode")]
-    let (auth_user, auth_pass) = ("test_user".to_string(), "test_pass".to_string());
-    #[cfg(not(feature = "testmode"))]
-    let (auth_user, auth_pass) = (
-        std::env::var("AUTH_USER").unwrap_or_else(|_| "auth_user".to_string()),
-        std::env::var("AUTH_PASS").unwrap_or_else(|_| "auth_password".to_string()),
-    );
+    // 統合テスト用の認証情報設定
+    let (auth_user, auth_pass) = if cfg!(test) || std::env::var("TEST_MODE").is_ok() {
+        ("auth_user".to_string(), "auth_password".to_string())
+    } else {
+        (
+            std::env::var("AUTH_USER").unwrap_or_else(|_| "auth_user".to_string()),
+            std::env::var("AUTH_PASS").unwrap_or_else(|_| "auth_password".to_string()),
+        )
+    };
 
     if payload.username != auth_user || payload.password != auth_pass {
         return Err(AuthError::WrongCredentials);

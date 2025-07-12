@@ -33,10 +33,12 @@ pub mod shared {
         pub mod auth_middleware;
         pub mod cors_middleware;
         pub mod metrics_middleware;
+        pub mod watch_middleware;
 
         // pub use auth_middleware::*;
         // pub use cors_middleware::*;
         // pub use metrics_middleware::*;
+        // pub use watch_middleware::*;
     }
 
     pub mod utils {

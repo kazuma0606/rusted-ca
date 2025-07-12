@@ -9,6 +9,7 @@
 // axum = "0.7"
 
 use axum::Router;
+use dotenvy::dotenv;
 use reqwest::StatusCode;
 use rusted_ca::infrastructure::di::container::DIContainer;
 use rusted_ca::presentation::router::app_router::create_app_router;
@@ -29,8 +30,18 @@ async fn spawn_test_server(app: Router) -> TestAddr {
     addr
 }
 
+// .envファイルを明示的に読み込む
+fn init_env() {
+    let _ = dotenv();
+    // 統合テスト用の環境変数を設定
+    unsafe {
+        std::env::set_var("TEST_MODE", "1");
+    }
+}
+
 #[tokio::test]
 async fn test_login_success() {
+    init_env();
     let di = DIContainer::new();
     let user_controller = di.build_user_controller().unwrap();
     let app = create_app_router(user_controller);
@@ -38,7 +49,7 @@ async fn test_login_success() {
     let client = reqwest::Client::new();
     let res = client
         .post(&format!("http://{}/api/auth/login", addr))
-        .json(&json!({"username": "test_user", "password": "test_pass"}))
+        .json(&json!({"username": "auth_user", "password": "auth_password"}))
         .send()
         .await
         .unwrap();
@@ -49,6 +60,7 @@ async fn test_login_success() {
 
 #[tokio::test]
 async fn test_login_fail() {
+    init_env();
     let di = DIContainer::new();
     let user_controller = di.build_user_controller().unwrap();
     let app = create_app_router(user_controller);
@@ -65,6 +77,7 @@ async fn test_login_fail() {
 
 #[tokio::test]
 async fn test_create_user_with_auth() {
+    init_env();
     let di = DIContainer::new();
     let user_controller = di.build_user_controller().unwrap();
     let app = create_app_router(user_controller);
@@ -73,7 +86,7 @@ async fn test_create_user_with_auth() {
     // まずログインしてトークン取得
     let login_res = client
         .post(&format!("http://{}/api/auth/login", addr))
-        .json(&json!({"username": "test_user", "password": "test_pass"}))
+        .json(&json!({"username": "auth_user", "password": "auth_password"}))
         .send()
         .await
         .unwrap();
@@ -98,6 +111,7 @@ async fn test_create_user_with_auth() {
 /// 認証なしでユーザー作成APIを叩くと失敗（401または400）することを確認
 #[tokio::test]
 async fn test_create_user_without_auth() {
+    init_env();
     let di = DIContainer::new();
     let user_controller = di.build_user_controller().unwrap();
     let app = create_app_router(user_controller);

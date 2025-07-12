@@ -10,7 +10,8 @@ use crate::presentation::controller::user_controller::UserController;
 use crate::presentation::router::auth_router::create_auth_routes;
 use crate::presentation::router::fortune_router::create_fortune_routes;
 use crate::presentation::router::user_router::create_user_routes;
-use axum::{Json, Router, routing::get};
+use crate::shared::middleware::watch_middleware;
+use axum::{Json, Router, middleware, routing::get};
 use std::sync::Arc;
 
 /// メインアプリケーションルーター
@@ -19,6 +20,7 @@ use std::sync::Arc;
 /// 1. 全ルーターの統合
 /// 2. ヘルスチェックエンドポイント
 /// 3. APIプレフィックスの設定
+/// 4. ログ・メトリクス収集ミドルウェア
 pub fn create_app_router<T, U, V, W>(user_controller: Arc<UserController<T, U, V, W>>) -> Router
 where
     T: CreateUserUsecaseInterface + Send + Sync + 'static,
@@ -41,4 +43,5 @@ where
         .nest("/api", create_user_routes(user_controller))
         .nest("/api", create_auth_routes())
         .nest("/api", create_fortune_routes())
+        .layer(middleware::from_fn(watch_middleware::watch_middleware))
 }
