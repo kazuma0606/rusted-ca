@@ -16,6 +16,7 @@ use crate::shared::middleware::cors_middleware::build_cors_layer;
 use crate::shared::middleware::discord_middleware::{
     discord_notification_middleware, try_notify_startup,
 };
+use crate::shared::middleware::security_headers_middleware::security_headers_middleware;
 use crate::shared::middleware::watch_middleware;
 use axum::{Json, Router, middleware, routing::get};
 use std::sync::Arc;
@@ -62,4 +63,5 @@ where
             discord_config,
             discord_notification_middleware,
         ))
+        .layer(middleware::from_fn(security_headers_middleware))
 }
