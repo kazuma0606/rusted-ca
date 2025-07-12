@@ -12,8 +12,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("  - アプリケーション層: ユースケース、DTO、コマンド/クエリ分離");
     println!("  - インフラストラクチャ層: SQLite実装、DIコンテナ、CQRS、Webサーバー");
     println!("  - プレゼンテーション層: コントローラー、ルーター、DTO");
+    println!("  - gRPCサーバー: Protocol Buffers + Prost + Axum");
 
-    // Webサーバーを起動
+    // HTTP + gRPC統合サーバーを起動
     run().await?;
 
     Ok(())

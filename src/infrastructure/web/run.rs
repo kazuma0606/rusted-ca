@@ -11,6 +11,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use crate::infrastructure::di::container::DIContainer;
+use crate::infrastructure::grpc::server::create_grpc_router;
 use crate::presentation::router::app_router::create_app_router;
 
 /// Webサーバーを起動する
@@ -31,9 +32,13 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let test_id = id_generator();
     println!("✅ ID生成器のテストが完了しました: {}", test_id.0);
 
-    // 5. ルーティング設定
+    // 5. ルーティング設定（HTTP + gRPC統合）
     let user_controller = di_container.build_user_controller()?;
-    let app = create_app_router(user_controller);
+    let http_router = create_app_router(user_controller);
+    let grpc_router = create_grpc_router();
+
+    // HTTPとgRPCルーターを統合
+    let app = http_router.merge(grpc_router);
 
     // 6. サーバー起動
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -48,6 +53,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("  - PUT  /api/users/:id - ユーザー更新");
     println!("  - DELETE /api/users/:id - ユーザー削除");
     println!("  - GET  /api/fortune - ランダム癒し系おみくじ");
+    println!("  - POST /grpc/hello - gRPC Hello Service (Protocol Buffers)");
 
     serve(listener, app).await?;
 

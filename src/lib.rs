@@ -195,6 +195,11 @@ pub mod infrastructure {
     pub mod web {
         pub mod run;
     }
+
+    pub mod grpc {
+        pub mod hello_service;
+        pub mod server;
+    }
 }
 
 // ===== Presentation Layer =====
@@ -236,6 +241,7 @@ pub mod presentation {
         pub mod app_router;
         pub mod auth_router;
         pub mod fortune_router;
+        pub mod grpc_router;
         pub mod metrics_router;
         pub mod user_router;
 

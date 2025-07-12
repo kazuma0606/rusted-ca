@@ -18,11 +18,17 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 dotenvy = "0.15"
 async-trait = "0.1"
 rusqlite = { version = "0.30", features = ["bundled"] }
-hyper = { version = "0.14", features = ["server"] }
-hyper-util = "0.1"
+hyper = { version = "0.14", features = ["server", "http2"] }
+hyper-util = { version = "0.1", features = ["server"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rand = "0.8"
+prost = "0.12"
+prost-build = "0.12"
+bytes = "1.0"
+
+[build-dependencies]
+prost-build = "0.12"
 
 [dev-dependencies]
 reqwest = { version = "0.11", features = ["json"] }
