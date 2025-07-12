@@ -3,7 +3,7 @@
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/kazuma0606/rusted-ca/actions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-stable-blue?logo=rust)](https://www.rust-lang.org/)
-[![Discord](https://img.shields.io/discord/1393466997710262323?label=discord&logo=discord&color=7289da)](https://discord.gg/xmCNqRgF)
+<!-- [![Discord](https://img.shields.io/discord/1393466997710262323?label=discord&logo=discord&color=7289da)](https://discord.gg/xmCNqRgF) -->
 
 ## クイックスタートガイド
 
