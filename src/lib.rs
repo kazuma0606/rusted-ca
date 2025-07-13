@@ -208,6 +208,7 @@ pub mod infrastructure {
     }
 
     pub mod web {
+        pub mod api_router;
         pub mod run;
     }
 
