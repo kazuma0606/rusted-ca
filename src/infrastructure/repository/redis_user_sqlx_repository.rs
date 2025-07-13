@@ -50,4 +50,62 @@ impl CreateUserSqlxRepositoryInterface for RedisUserSqlxRepository {
             )),
         }
     }
+    async fn get_user_by_id(&self, user_id: &str) -> Result<Option<UserSqlx>, ApplicationError> {
+        println!("Called: Redis");
+        self.get_user_by_id(user_id).await
+    }
+}
+
+impl RedisUserSqlxRepository {
+    pub async fn get_user_by_id(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<UserSqlx>, ApplicationError> {
+        let mut conn = self.pool.get().await.map_err(|e| {
+            ApplicationError::Infrastructure(InfrastructureError::ExternalService {
+                service: "redis".to_string(),
+                status: "connection_failed".to_string(),
+                message: e.to_string(),
+            })
+        })?;
+        let key = format!("user:{}", user_id);
+        let map: std::collections::HashMap<String, String> =
+            conn.hgetall(&key).await.map_err(|e| {
+                ApplicationError::Infrastructure(InfrastructureError::ExternalService {
+                    service: "redis".to_string(),
+                    status: "hgetall_failed".to_string(),
+                    message: e.to_string(),
+                })
+            })?;
+        if map.is_empty() {
+            return Ok(None);
+        }
+        // 必須フィールドの存在チェック
+        let id = map.get("id").cloned().unwrap_or_default();
+        let email = map.get("email").cloned().unwrap_or_default();
+        let name = map.get("name").cloned().unwrap_or_default();
+        let password_hash = map.get("password_hash").cloned().unwrap_or_default();
+        let phone = map.get("phone").cloned().filter(|s| !s.is_empty());
+        let birth_date = map
+            .get("birth_date")
+            .and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok());
+        let created_at = map
+            .get("created_at")
+            .and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f").ok())
+            .unwrap_or_else(|| chrono::Utc::now().naive_utc());
+        let updated_at = map
+            .get("updated_at")
+            .and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f").ok())
+            .unwrap_or_else(|| chrono::Utc::now().naive_utc());
+        Ok(Some(UserSqlx {
+            id,
+            email,
+            name,
+            password_hash,
+            phone,
+            birth_date,
+            created_at,
+            updated_at,
+        }))
+    }
 }

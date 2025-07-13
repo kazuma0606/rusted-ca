@@ -24,4 +24,18 @@ where
         let _ = self.redis.save_user(user).await; // Redis側のエラーは握りつぶす例
         Ok(saved)
     }
+
+    async fn get_user_by_id(&self, user_id: &str) -> Result<Option<UserSqlx>, ApplicationError> {
+        // 1. Redisから取得
+        if let Some(user) = self.redis.get_user_by_id(user_id).await? {
+            return Ok(Some(user));
+        }
+        // 2. TiDBから取得
+        if let Some(user) = self.tidb.get_user_by_id(user_id).await? {
+            // 3. Redisにキャッシュ
+            let _ = self.redis.save_user(&user).await;
+            return Ok(Some(user));
+        }
+        Ok(None)
+    }
 }

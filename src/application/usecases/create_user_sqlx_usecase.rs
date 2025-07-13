@@ -12,6 +12,11 @@ pub trait CreateUserSqlxUsecaseInterface: Send + Sync {
     async fn create_user(&self, req: UserCreateRequestSqlx) -> ApplicationResult<UserResponseSqlx>;
 }
 
+#[async_trait]
+pub trait GetUserSqlxUsecaseInterface: Send + Sync {
+    async fn get_user_by_id(&self, user_id: &str) -> ApplicationResult<Option<UserResponseSqlx>>;
+}
+
 pub struct CreateUserSqlxUsecase<R: Send + Sync> {
     pub repository: R,
     pub id_generator: Box<dyn Fn() -> String + Send + Sync>,
@@ -45,6 +50,18 @@ where
 }
 
 #[async_trait]
+impl<R> GetUserSqlxUsecaseInterface for CreateUserSqlxUsecase<R>
+where
+    R: Send + Sync + CreateUserSqlxRepositoryInterface,
+{
+    async fn get_user_by_id(&self, user_id: &str) -> ApplicationResult<Option<UserResponseSqlx>> {
+        let user_opt = self.repository.get_user_by_id(user_id).await?;
+        Ok(user_opt.map(UserResponseSqlx::from))
+    }
+}
+
+#[async_trait]
 pub trait CreateUserSqlxRepositoryInterface: Send + Sync {
     async fn save_user(&self, user: &UserSqlx) -> ApplicationResult<UserSqlx>;
+    async fn get_user_by_id(&self, user_id: &str) -> ApplicationResult<Option<UserSqlx>>;
 }

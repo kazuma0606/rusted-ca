@@ -1,6 +1,7 @@
 use crate::application::usecases::create_user_sqlx_usecase::CreateUserSqlxRepositoryInterface;
 use crate::domain::entity_sqlx::user_sqlx::UserSqlx;
 use crate::shared::error::application_error::ApplicationError;
+use crate::shared::error::application_error::ApplicationResult;
 use crate::shared::error::infrastructure_error::InfrastructureError;
 use async_trait::async_trait;
 use sqlx::MySqlPool;
@@ -37,5 +38,22 @@ impl CreateUserSqlxRepositoryInterface for TiDBUserSqlxRepository {
                 },
             )),
         }
+    }
+
+    async fn get_user_by_id(&self, user_id: &str) -> ApplicationResult<Option<UserSqlx>> {
+        println!("Called: MySQL");
+        let row = sqlx::query_as::<_, UserSqlx>("SELECT * FROM users WHERE id = ?")
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| {
+                ApplicationError::Infrastructure(
+            crate::shared::error::infrastructure_error::InfrastructureError::DatabaseQuery {
+                query: "SELECT * FROM users WHERE id = ?".to_string(),
+                message: e.to_string(),
+            }
+        )
+            })?;
+        Ok(row)
     }
 }
