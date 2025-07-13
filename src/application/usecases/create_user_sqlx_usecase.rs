@@ -2,6 +2,7 @@ use crate::domain::entity_sqlx::user_sqlx::UserSqlx;
 use crate::presentation::dto::user_create_request_sqlx::UserCreateRequestSqlx;
 use crate::presentation::dto::user_response_sqlx::UserResponseSqlx;
 use crate::shared::error::application_error::ApplicationResult;
+use crate::shared::error::infrastructure_error::PasswordHasherResult;
 use async_trait::async_trait;
 use chrono::Utc;
 use uuid::Uuid;
@@ -13,6 +14,8 @@ pub trait CreateUserSqlxUsecaseInterface: Send + Sync {
 
 pub struct CreateUserSqlxUsecase<R: Send + Sync> {
     pub repository: R,
+    pub id_generator: Box<dyn Fn() -> String + Send + Sync>,
+    pub password_hasher: Box<dyn Fn(&str) -> PasswordHasherResult<String> + Send + Sync>,
 }
 
 #[async_trait]
@@ -22,11 +25,15 @@ where
 {
     async fn create_user(&self, req: UserCreateRequestSqlx) -> ApplicationResult<UserResponseSqlx> {
         let now = Utc::now().naive_utc();
+        let id = (self.id_generator)();
+        let password_hash = (self.password_hasher)(&req.password).map_err(|e| {
+            crate::shared::error::application_error::ApplicationError::Infrastructure(e)
+        })?;
         let user = UserSqlx {
-            id: Uuid::new_v4().to_string(),
+            id,
             email: req.email,
             name: req.name,
-            password_hash: req.password, // 本番ではハッシュ化必須
+            password_hash,
             phone: req.phone,
             birth_date: req.birth_date,
             created_at: now,

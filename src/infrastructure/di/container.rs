@@ -8,9 +8,11 @@ use crate::infrastructure::repository::{
     sync_user_sqlx_repository::SyncUserSqlxRepository,
     tidb_user_sqlx_repository::TiDBUserSqlxRepository,
 };
+use crate::shared::utils::password_hasher;
+use crate::shared::utils::uuid_generator::IdGeneratorInterface;
+use crate::shared::utils::uuid_generator::UuidGenerator;
 use deadpool_redis::Pool;
 use sqlx::MySqlPool;
-
 pub struct DIContainer {
     pub create_user_usecase: CreateUserSqlxUsecase<
         SyncUserSqlxRepository<TiDBUserSqlxRepository, RedisUserSqlxRepository>,
@@ -25,8 +27,17 @@ impl DIContainer {
             tidb: tidb_repo,
             redis: redis_repo,
         };
+        let uuid_gen = UuidGenerator;
+        let id_gen: Box<dyn Fn() -> String + Send + Sync> = Box::new(move || uuid_gen.generate());
+        let pass_hasher: Box<
+            dyn Fn(&str) -> crate::shared::error::infrastructure_error::PasswordHasherResult<String>
+                + Send
+                + Sync,
+        > = Box::new(password_hasher::encode);
         let create_user_usecase = CreateUserSqlxUsecase {
             repository: sync_repo,
+            id_generator: id_gen,
+            password_hasher: pass_hasher,
         };
         Self {
             create_user_usecase,

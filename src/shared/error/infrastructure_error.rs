@@ -44,7 +44,13 @@ pub enum InfrastructureError {
 
     #[error("Resource not available: {resource} - {message}")]
     ResourceUnavailable { resource: String, message: String },
+
+    #[error("Password hashing failed: {message}")]
+    PasswordHashing { message: String },
 }
 
 // Infrastructure Layer Result Type
 pub type InfrastructureResult<T> = Result<T, InfrastructureError>;
+
+// Password Hasher Result Type
+pub type PasswordHasherResult<T> = Result<T, InfrastructureError>;

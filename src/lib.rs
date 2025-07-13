@@ -99,7 +99,6 @@ pub mod domain {
     }
 
     pub mod service {
-        pub mod id_generator;
         pub mod user_domain_service;
 
         // pub use user_domain_service::*;
