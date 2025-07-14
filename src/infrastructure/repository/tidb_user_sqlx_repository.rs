@@ -85,4 +85,18 @@ impl CreateUserSqlxRepositoryInterface for TiDBUserSqlxRepository {
             )),
         }
     }
+
+    async fn delete_user(&self, user_id: &str) -> ApplicationResult<()> {
+        let query = "DELETE FROM users WHERE id = ?";
+        let result = sqlx::query(query).bind(user_id).execute(&self.pool).await;
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(ApplicationError::Infrastructure(
+                InfrastructureError::DatabaseQuery {
+                    query: query.to_string(),
+                    message: e.to_string(),
+                },
+            )),
+        }
+    }
 }

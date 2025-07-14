@@ -138,6 +138,7 @@ pub mod application {
     pub mod usecases {
         pub mod create_user_sqlx_usecase;
         pub mod create_user_usecase;
+        pub mod delete_user_sqlx_usecase;
         pub mod delete_user_usecase;
         pub mod get_user_usecase;
         pub mod list_users_usecase;
@@ -248,6 +249,7 @@ pub mod presentation {
         pub mod metrics_response;
         pub mod update_user_request;
         pub mod user_create_request_sqlx;
+        pub mod user_deleted_response;
         pub mod user_response;
         pub mod user_response_sqlx;
 

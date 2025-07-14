@@ -65,4 +65,5 @@ pub trait CreateUserSqlxRepositoryInterface: Send + Sync {
     async fn save_user(&self, user: &UserSqlx) -> ApplicationResult<UserSqlx>;
     async fn get_user_by_id(&self, user_id: &str) -> ApplicationResult<Option<UserSqlx>>;
     async fn update_user(&self, user: &UserSqlx) -> ApplicationResult<UserSqlx>;
+    async fn delete_user(&self, user_id: &str) -> ApplicationResult<()>;
 }

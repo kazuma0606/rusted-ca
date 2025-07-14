@@ -3,6 +3,7 @@
 // 2025/7/8
 
 use crate::application::usecases::create_user_sqlx_usecase::CreateUserSqlxUsecase;
+use crate::application::usecases::delete_user_sqlx_usecase::DeleteUserSqlxUsecase;
 use crate::application::usecases::update_user_sqlx_usecase::UpdateUserSqlxUsecase;
 
 use crate::infrastructure::repository::{
@@ -20,6 +21,9 @@ pub struct DIContainer {
         SyncUserSqlxRepository<TiDBUserSqlxRepository, RedisUserSqlxRepository>,
     >,
     pub update_user_usecase: UpdateUserSqlxUsecase<
+        SyncUserSqlxRepository<TiDBUserSqlxRepository, RedisUserSqlxRepository>,
+    >,
+    pub delete_user_usecase: DeleteUserSqlxUsecase<
         SyncUserSqlxRepository<TiDBUserSqlxRepository, RedisUserSqlxRepository>,
     >,
 }
@@ -44,13 +48,16 @@ impl DIContainer {
             id_generator: id_gen,
             password_hasher: pass_hasher,
         };
-        // Update用ユースケースはrepositoryのみ必要
         let update_user_usecase = UpdateUserSqlxUsecase {
+            repository: sync_repo.clone(),
+        };
+        let delete_user_usecase = DeleteUserSqlxUsecase {
             repository: sync_repo,
         };
         Self {
             create_user_usecase,
             update_user_usecase,
+            delete_user_usecase,
         }
     }
 }

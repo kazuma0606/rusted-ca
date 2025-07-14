@@ -62,6 +62,28 @@ impl CreateUserSqlxRepositoryInterface for RedisUserSqlxRepository {
         // Redisの場合は既存のsave_userを再利用（上書き）
         self.save_user(user).await
     }
+
+    async fn delete_user(&self, user_id: &str) -> ApplicationResult<()> {
+        let mut conn = self.pool.get().await.map_err(|e| {
+            ApplicationError::Infrastructure(InfrastructureError::ExternalService {
+                service: "redis".to_string(),
+                status: "connection_failed".to_string(),
+                message: e.to_string(),
+            })
+        })?;
+        let key = format!("user:{}", user_id);
+        let result: Result<(), _> = conn.del(&key).await;
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(ApplicationError::Infrastructure(
+                InfrastructureError::ExternalService {
+                    service: "redis".to_string(),
+                    status: "del_failed".to_string(),
+                    message: e.to_string(),
+                },
+            )),
+        }
+    }
 }
 
 impl RedisUserSqlxRepository {

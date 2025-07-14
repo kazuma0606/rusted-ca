@@ -47,4 +47,12 @@ where
         let _ = self.redis.update_user(user).await; // Redis側のエラーは握りつぶす例
         Ok(updated)
     }
+
+    async fn delete_user(&self, user_id: &str) -> Result<(), ApplicationError> {
+        // 1. MySQLから削除
+        self.tidb.delete_user(user_id).await?;
+        // 2. Redisから削除（エラーは握りつぶす）
+        let _ = self.redis.delete_user(user_id).await;
+        Ok(())
+    }
 }
