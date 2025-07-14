@@ -3,6 +3,8 @@
 // 2025/7/8
 
 use crate::application::usecases::create_user_sqlx_usecase::CreateUserSqlxUsecase;
+use crate::application::usecases::update_user_sqlx_usecase::UpdateUserSqlxUsecase;
+
 use crate::infrastructure::repository::{
     redis_user_sqlx_repository::RedisUserSqlxRepository,
     sync_user_sqlx_repository::SyncUserSqlxRepository,
@@ -15,6 +17,9 @@ use deadpool_redis::Pool;
 use sqlx::MySqlPool;
 pub struct DIContainer {
     pub create_user_usecase: CreateUserSqlxUsecase<
+        SyncUserSqlxRepository<TiDBUserSqlxRepository, RedisUserSqlxRepository>,
+    >,
+    pub update_user_usecase: UpdateUserSqlxUsecase<
         SyncUserSqlxRepository<TiDBUserSqlxRepository, RedisUserSqlxRepository>,
     >,
 }
@@ -35,12 +40,17 @@ impl DIContainer {
                 + Sync,
         > = Box::new(password_hasher::encode);
         let create_user_usecase = CreateUserSqlxUsecase {
-            repository: sync_repo,
+            repository: sync_repo.clone(),
             id_generator: id_gen,
             password_hasher: pass_hasher,
         };
+        // Update用ユースケースはrepositoryのみ必要
+        let update_user_usecase = UpdateUserSqlxUsecase {
+            repository: sync_repo,
+        };
         Self {
             create_user_usecase,
+            update_user_usecase,
         }
     }
 }

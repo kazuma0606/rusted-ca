@@ -142,6 +142,7 @@ pub mod application {
         pub mod get_user_usecase;
         pub mod list_users_usecase;
         pub mod login_usecase;
+        pub mod update_user_sqlx_usecase;
         pub mod update_user_usecase;
 
         // pub use create_user_usecase::*;

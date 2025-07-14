@@ -6,6 +6,7 @@ use crate::shared::error::infrastructure_error::InfrastructureError;
 use async_trait::async_trait;
 use sqlx::MySqlPool;
 
+#[derive(Clone)]
 pub struct TiDBUserSqlxRepository {
     pub pool: MySqlPool,
 }
@@ -55,5 +56,33 @@ impl CreateUserSqlxRepositoryInterface for TiDBUserSqlxRepository {
         )
             })?;
         Ok(row)
+    }
+
+    async fn update_user(&self, user: &UserSqlx) -> ApplicationResult<UserSqlx> {
+        let query = r#"
+            UPDATE users 
+            SET email = ?, name = ?, password_hash = ?, phone = ?, birth_date = ?, updated_at = ?
+            WHERE id = ?
+        "#;
+        let result = sqlx::query(query)
+            .bind(&user.email)
+            .bind(&user.name)
+            .bind(&user.password_hash)
+            .bind(&user.phone)
+            .bind(&user.birth_date)
+            .bind(&user.updated_at)
+            .bind(&user.id)
+            .execute(&self.pool)
+            .await;
+
+        match result {
+            Ok(_) => Ok(user.clone()),
+            Err(e) => Err(ApplicationError::Infrastructure(
+                InfrastructureError::DatabaseQuery {
+                    query: query.to_string(),
+                    message: e.to_string(),
+                },
+            )),
+        }
     }
 }

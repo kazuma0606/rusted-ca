@@ -4,10 +4,11 @@ use crate::shared::error::application_error::ApplicationError;
 use crate::shared::error::infrastructure_error::InfrastructureError;
 use async_trait::async_trait;
 
+#[derive(Clone)]
 pub struct SyncUserSqlxRepository<T, R>
 where
-    T: Send + Sync,
-    R: Send + Sync,
+    T: Send + Sync + Clone,
+    R: Send + Sync + Clone,
 {
     pub tidb: T,
     pub redis: R,
@@ -16,8 +17,8 @@ where
 #[async_trait]
 impl<T, R> CreateUserSqlxRepositoryInterface for SyncUserSqlxRepository<T, R>
 where
-    T: Send + Sync + CreateUserSqlxRepositoryInterface,
-    R: Send + Sync + CreateUserSqlxRepositoryInterface,
+    T: Send + Sync + CreateUserSqlxRepositoryInterface + Clone,
+    R: Send + Sync + CreateUserSqlxRepositoryInterface + Clone,
 {
     async fn save_user(&self, user: &UserSqlx) -> Result<UserSqlx, ApplicationError> {
         let saved = self.tidb.save_user(user).await?;
@@ -37,5 +38,13 @@ where
             return Ok(Some(user));
         }
         Ok(None)
+    }
+
+    async fn update_user(&self, user: &UserSqlx) -> Result<UserSqlx, ApplicationError> {
+        // 1. MySQLでUpdate
+        let updated = self.tidb.update_user(user).await?;
+        // 2. Redisを更新（キャッシュ更新）
+        let _ = self.redis.update_user(user).await; // Redis側のエラーは握りつぶす例
+        Ok(updated)
     }
 }

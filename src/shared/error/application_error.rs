@@ -39,6 +39,9 @@ pub enum ApplicationError {
 
     #[error("Infrastructure error: {0}")]
     Infrastructure(#[from] InfrastructureError),
+
+    #[error("Not found: {resource} - {id}")]
+    NotFound { resource: String, id: String },
 }
 
 // Application Layer Result Type

@@ -520,6 +520,21 @@ where
                     }
                 }),
             ),
+            ApplicationError::NotFound { resource, id } => (
+                StatusCode::NOT_FOUND,
+                json!({
+                    "success": false,
+                    "error": {
+                        "code": "NOT_FOUND",
+                        "message": format!("{} with ID '{}' not found", resource, id),
+                        "details": {
+                            "layer": "application",
+                            "operation": "get_resource",
+                            "timestamp": chrono::Utc::now().to_rfc3339()
+                        }
+                    }
+                }),
+            ),
         }
     }
 }

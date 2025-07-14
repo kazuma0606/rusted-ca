@@ -5,9 +5,12 @@ use crate::shared::error::infrastructure_error::InfrastructureError;
 use async_trait::async_trait;
 use deadpool_redis::{Pool, redis::AsyncCommands};
 
+#[derive(Clone)]
 pub struct RedisUserSqlxRepository {
     pub pool: Pool,
 }
+
+use crate::shared::error::application_error::ApplicationResult;
 
 #[async_trait]
 impl CreateUserSqlxRepositoryInterface for RedisUserSqlxRepository {
@@ -52,12 +55,17 @@ impl CreateUserSqlxRepositoryInterface for RedisUserSqlxRepository {
     }
     async fn get_user_by_id(&self, user_id: &str) -> Result<Option<UserSqlx>, ApplicationError> {
         println!("Called: Redis");
-        self.get_user_by_id(user_id).await
+        self.get_user_by_id_impl(user_id).await
+    }
+
+    async fn update_user(&self, user: &UserSqlx) -> ApplicationResult<UserSqlx> {
+        // Redisの場合は既存のsave_userを再利用（上書き）
+        self.save_user(user).await
     }
 }
 
 impl RedisUserSqlxRepository {
-    pub async fn get_user_by_id(
+    pub async fn get_user_by_id_impl(
         &self,
         user_id: &str,
     ) -> Result<Option<UserSqlx>, ApplicationError> {
@@ -107,5 +115,10 @@ impl RedisUserSqlxRepository {
             created_at,
             updated_at,
         }))
+    }
+
+    async fn update_user(&self, user: &UserSqlx) -> ApplicationResult<UserSqlx> {
+        // Redisの場合は既存のsave_userを再利用（上書き）
+        self.save_user(user).await
     }
 }

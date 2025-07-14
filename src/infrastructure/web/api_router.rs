@@ -5,14 +5,17 @@
 use crate::application::usecases::create_user_sqlx_usecase::{
     CreateUserSqlxUsecaseInterface, GetUserSqlxUsecaseInterface,
 };
+use crate::application::usecases::update_user_sqlx_usecase::UpdateUserSqlxUsecaseInterface;
+
 use crate::infrastructure::di::container::DIContainer;
+use crate::presentation::dto::update_user_request::UpdateUserRequest;
 use crate::presentation::dto::user_create_request_sqlx::UserCreateRequestSqlx;
 use axum::{
     Json, Router,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use std::sync::Arc;
 
@@ -20,6 +23,7 @@ pub fn build_api_router(di: Arc<DIContainer>) -> Router {
     Router::new()
         .route("/api/user", post(create_user_handler))
         .route("/api/user/:id", get(get_user_handler))
+        .route("/api/user/:id", put(update_user_handler))
         .with_state(di)
 }
 
@@ -48,6 +52,21 @@ async fn get_user_handler(
             Json(serde_json::json!({"error": "User not found"})),
         )
             .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response(),
+    }
+}
+
+async fn update_user_handler(
+    State(di): State<Arc<DIContainer>>,
+    Path(user_id): Path<String>,
+    Json(payload): Json<UpdateUserRequest>,
+) -> impl IntoResponse {
+    match di.update_user_usecase.update_user(&user_id, payload).await {
+        Ok(user) => (StatusCode::OK, Json(user)).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({"error": e.to_string()})),
