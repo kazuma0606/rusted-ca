@@ -2,6 +2,7 @@
 // ユーザー更新リクエスト
 // 2025/7/8
 
+use crate::domain::entity_sqlx::user_sqlx::{UserRole, UserStatus};
 use serde::{Deserialize, Serialize};
 
 /// ユーザー更新リクエストDTO
@@ -23,6 +24,14 @@ pub struct UpdateUserRequest {
     /// 生年月日（オプション）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub birth_date: Option<String>,
+
+    /// 権限ロール（オプション）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub role: Option<UserRole>,
+
+    /// ステータス（オプション）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<UserStatus>,
 }
 
 impl UpdateUserRequest {

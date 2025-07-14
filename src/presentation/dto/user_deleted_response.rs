@@ -1,18 +1,21 @@
+use crate::domain::entity_sqlx::user_sqlx::{UserRole, UserSqlx, UserStatus};
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct UserDeletedResponse {
     pub email: String,
     pub name: String,
-    pub status: String,
+    pub role: UserRole,
+    pub status: UserStatus,
 }
 
 impl UserDeletedResponse {
-    pub fn new(email: String, name: String) -> Self {
+    pub fn from_user(user: &UserSqlx) -> Self {
         Self {
-            email,
-            name,
-            status: "deleted".to_string(),
+            email: user.email.clone(),
+            name: user.name.clone(),
+            role: user.role.clone(),
+            status: UserStatus::Deleted,
         }
     }
 }

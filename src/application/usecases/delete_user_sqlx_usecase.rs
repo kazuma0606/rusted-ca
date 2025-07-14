@@ -25,7 +25,7 @@ where
             resource: "User".to_string(),
             id: user_id.to_string(),
         })?;
-        let response = UserDeletedResponse::new(user.email, user.name);
+        let response = UserDeletedResponse::from_user(&user);
         // 2. 削除
         self.repository.delete_user(user_id).await?;
         Ok(response)

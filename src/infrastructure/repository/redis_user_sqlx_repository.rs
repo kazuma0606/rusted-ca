@@ -1,5 +1,5 @@
 use crate::application::usecases::create_user_sqlx_usecase::CreateUserSqlxRepositoryInterface;
-use crate::domain::entity_sqlx::user_sqlx::UserSqlx;
+use crate::domain::entity_sqlx::user_sqlx::{UserRole, UserSqlx, UserStatus};
 use crate::shared::error::application_error::ApplicationError;
 use crate::shared::error::infrastructure_error::InfrastructureError;
 use async_trait::async_trait;
@@ -28,12 +28,16 @@ impl CreateUserSqlxRepositoryInterface for RedisUserSqlxRepository {
         let phone = user.phone.clone().unwrap_or_default();
         let created_at = user.created_at.to_string();
         let updated_at = user.updated_at.to_string();
+        let role = format!("{}", &user.role);
+        let status = format!("{}", &user.status);
 
         let fields = [
             ("id", user.id.as_str()),
             ("email", user.email.as_str()),
             ("name", user.name.as_str()),
             ("password_hash", user.password_hash.as_str()),
+            ("role", &role),
+            ("status", &status),
             ("phone", phone.as_str()),
             ("birth_date", birth_date.as_str()),
             ("created_at", created_at.as_str()),
@@ -127,11 +131,23 @@ impl RedisUserSqlxRepository {
             .get("updated_at")
             .and_then(|s| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f").ok())
             .unwrap_or_else(|| chrono::Utc::now().naive_utc());
+        let role = map
+            .get("role")
+            .cloned()
+            .unwrap_or_else(|| "User".to_string());
+        let status = map
+            .get("status")
+            .cloned()
+            .unwrap_or_else(|| "Active".to_string());
+        let role = role.parse().unwrap_or(UserRole::User);
+        let status = status.parse().unwrap_or(UserStatus::Active);
         Ok(Some(UserSqlx {
             id,
             email,
             name,
             password_hash,
+            role,
+            status,
             phone,
             birth_date,
             created_at,

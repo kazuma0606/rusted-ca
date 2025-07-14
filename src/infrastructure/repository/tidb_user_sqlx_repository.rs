@@ -15,14 +15,16 @@ pub struct TiDBUserSqlxRepository {
 impl CreateUserSqlxRepositoryInterface for TiDBUserSqlxRepository {
     async fn save_user(&self, user: &UserSqlx) -> Result<UserSqlx, ApplicationError> {
         let query = r#"
-            INSERT INTO users (id, email, name, password_hash, phone, birth_date, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (id, email, name, password_hash, role, status, phone, birth_date, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#;
         let result = sqlx::query(query)
             .bind(&user.id)
             .bind(&user.email)
             .bind(&user.name)
             .bind(&user.password_hash)
+            .bind(user.role.to_string())
+            .bind(user.status.to_string())
             .bind(&user.phone)
             .bind(&user.birth_date)
             .bind(&user.created_at)
@@ -61,13 +63,15 @@ impl CreateUserSqlxRepositoryInterface for TiDBUserSqlxRepository {
     async fn update_user(&self, user: &UserSqlx) -> ApplicationResult<UserSqlx> {
         let query = r#"
             UPDATE users 
-            SET email = ?, name = ?, password_hash = ?, phone = ?, birth_date = ?, updated_at = ?
+            SET email = ?, name = ?, password_hash = ?, role = ?, status = ?, phone = ?, birth_date = ?, updated_at = ?
             WHERE id = ?
         "#;
         let result = sqlx::query(query)
             .bind(&user.email)
             .bind(&user.name)
             .bind(&user.password_hash)
+            .bind(user.role.to_string())
+            .bind(user.status.to_string())
             .bind(&user.phone)
             .bind(&user.birth_date)
             .bind(&user.updated_at)

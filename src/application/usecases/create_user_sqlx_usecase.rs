@@ -1,4 +1,4 @@
-use crate::domain::entity_sqlx::user_sqlx::UserSqlx;
+use crate::domain::entity_sqlx::user_sqlx::{UserRole, UserSqlx, UserStatus};
 use crate::presentation::dto::user_create_request_sqlx::UserCreateRequestSqlx;
 use crate::presentation::dto::user_response_sqlx::UserResponseSqlx;
 use crate::shared::error::application_error::ApplicationResult;
@@ -39,6 +39,8 @@ where
             email: req.email,
             name: req.name,
             password_hash,
+            role: req.role.unwrap_or(UserRole::User),
+            status: req.status.unwrap_or(UserStatus::Active),
             phone: req.phone,
             birth_date: req.birth_date,
             created_at: now,

@@ -8,7 +8,7 @@
 
 このブランチは**MySQL+Redisによる分散ストレージPoC**構成です。
 - docker-composeでMySQL/Redis/phpMyAdmin/RedisInsightを一発起動
-- Rustアプリは**POST /api/user**でMySQLとRedis両方にデータを保存
+- Rustアプリは**CRUD全API**でMySQLとRedis両方にデータを同期
 - TiDB/MockTiKVは使いません
 
 ---
@@ -48,12 +48,10 @@ cargo run
 
 ---
 
-## PoC API（分散ストレージ同期保存）
+## API仕様（CRUD + 分散ストレージ同期）
 
-- **エンドポイント:** `POST /api/user`
-- **機能:** 送信したユーザー情報をMySQLとRedis両方に保存
-
-### 検証用curlコマンド
+### 1. ユーザー作成（Create）
+- **POST /api/user**
 ```sh
 curl -X POST http://localhost:3000/api/user \
   -H "Content-Type: application/json" \
@@ -65,8 +63,80 @@ curl -X POST http://localhost:3000/api/user \
     "birth_date": "1990-01-01"
   }'
 ```
-- 成功するとJSONでユーザー情報が返ります
-- MySQL/Redis両方にデータが保存されます
+- **レスポンス例**
+```json
+{
+  "id": "...",
+  "email": "john.doe@example.com",
+  "name": "John Doe",
+  "phone": "+1234567890",
+  "birth_date": "1990-01-01",
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+### 2. ユーザー取得（Read）
+- **GET /api/user/{id}**
+```sh
+curl -X GET http://localhost:3000/api/user/{USER_ID}
+```
+- **レスポンス例**
+```json
+{
+  "id": "...",
+  "email": "john.doe@example.com",
+  "name": "John Doe",
+  "phone": "+1234567890",
+  "birth_date": "1990-01-01",
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+### 3. ユーザー更新（Update）
+- **PUT /api/user/{id}**
+```sh
+curl -X PUT http://localhost:3000/api/user/{USER_ID} \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Smith",
+    "phone": "+1987654321",
+    "birth_date": "1995-05-15"
+  }'
+```
+- **部分更新も可能**
+```sh
+curl -X PUT http://localhost:3000/api/user/{USER_ID} \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "John Updated" }'
+```
+- **レスポンス例**
+```json
+{
+  "id": "...",
+  "email": "john.doe@example.com",
+  "name": "John Updated",
+  "phone": "+1987654321",
+  "birth_date": "1995-05-15",
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+### 4. ユーザー削除（Delete）
+- **DELETE /api/user/{id}**
+```sh
+curl -X DELETE http://localhost:3000/api/user/{USER_ID}
+```
+- **レスポンス例**
+```json
+{
+  "email": "john.doe@example.com",
+  "name": "John Updated",
+  "status": "deleted"
+}
+```
 
 ---
 
@@ -104,3 +174,51 @@ MIT License で誰でも自由に利用・改変・商用利用できます。
 ## Author
 
 Yoshimura Hisanori
+
+---
+
+## マイグレーションの更新・運用手順
+
+### 1. 新しいマイグレーションファイルの作成
+```sh
+sqlx migrate add <migration_name>
+```
+例: ユーザーテーブルにrole/statusカラムを追加したい場合
+```sh
+sqlx migrate add add_role_and_status_to_user
+```
+
+### 2. マイグレーションSQLの編集
+`migrations/`ディレクトリに作成されたSQLファイルに、必要なALTER TABLEやCREATE TABLE文を記述します。
+
+例:
+```sql
+ALTER TABLE users
+  ADD COLUMN role VARCHAR(32) NOT NULL DEFAULT 'USER',
+  ADD COLUMN status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE';
+```
+
+### 3. マイグレーションの適用
+```sh
+sqlx migrate run
+```
+- DBが起動していることを確認してから実行してください。
+- `DATABASE_URL`環境変数が必要です。
+  - 例: `export DATABASE_URL=mysql://root:root@localhost:3306/rusted_ca`（Linux/mac）
+  - 例: `$env:DATABASE_URL="mysql://root:root@localhost:3306/rusted_ca"`（PowerShell）
+
+### 4. マイグレーションの状態確認
+```sh
+sqlx migrate info
+```
+
+### 5. マイグレーションのロールバック（直前の変更を取り消す）
+```sh
+sqlx migrate revert
+```
+
+### 6. Rust構造体・enumの型も必ず合わせて修正
+- DBスキーマとRustの型がズレているとSQLxでエラーになります。
+- 追加カラムは一時的にOption<>型で受けると安全です。
+
+---

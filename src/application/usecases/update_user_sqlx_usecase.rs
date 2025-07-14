@@ -49,6 +49,12 @@ where
         if let Some(birth_date) = req.birth_date {
             user.birth_date = chrono::NaiveDate::parse_from_str(&birth_date, "%Y-%m-%d").ok();
         }
+        if let Some(role) = req.role {
+            user.role = role;
+        }
+        if let Some(status) = req.status {
+            user.status = status;
+        }
         user.updated_at = Utc::now().naive_utc();
 
         // 3. 更新
