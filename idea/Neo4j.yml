@@ -1,0 +1,615 @@
+# Neo4j Integration Strategy for Rust Application
+# Cursorでの実装用ガイド
+
+project_structure:
+  src/:
+    - lib.rs
+    - main.rs
+    graph/:
+      - mod.rs
+      - client.rs          # Neo4j接続・基本操作
+      - models.rs          # グラフノード・関係定義
+      - analyzers.rs       # 関係性分析機能
+      - recommender.rs     # 推薦システム
+      - security.rs        # セキュリティ分析
+      - migrations.rs      # グラフスキーマ管理
+    services/:
+      - mod.rs
+      - relationship_service.rs  # 関係性管理サービス
+      - analytics_service.rs     # 分析サービス
+      - recommendation_service.rs # 推薦サービス
+
+dependencies:
+  Cargo.toml: |
+    [dependencies]
+    neo4rs = "0.7"
+    serde = { version = "1.0", features = ["derive"] }
+    chrono = { version = "0.4", features = ["serde"] }
+    uuid = { version = "1.0", features = ["v4"] }
+    tokio = { version = "1.0", features = ["full"] }
+    thiserror = "1.0"
+    async-trait = "0.1"
+
+core_concepts:
+  neo4j_basics:
+    nodes: "エンティティ（ユーザー、リソース、デバイスなど）"
+    relationships: "ノード間の関係（FOLLOWS, ACCESSED, OWNS など）"
+    properties: "ノードや関係の属性"
+    labels: "ノードの分類タグ"
+    cypher: "Neo4jクエリ言語"
+
+  graph_advantages:
+    - "複雑な関係性の高速検索"
+    - "最短経路・影響範囲分析"
+    - "パターンマッチング"
+    - "リアルタイム推薦"
+    - "不正検知・異常検出"
+
+node_definitions:
+  User:
+    labels: ["User", "Person"]
+    properties:
+      - id: "String (primary key)"
+      - email: "String (unique)"
+      - name: "String"
+      - created_at: "DateTime"
+      - last_active: "DateTime"
+      - role: "String"
+      - status: "String (active/inactive/suspended)"
+    usage: "システム利用者"
+
+  Resource:
+    labels: ["Resource", "Asset"]
+    properties:
+      - id: "String (primary key)"
+      - name: "String"
+      - type: "String (file/api/database/service)"
+      - owner_id: "String"
+      - created_at: "DateTime"
+      - sensitivity_level: "String (public/internal/confidential/secret)"
+    usage: "システム内のリソース・アセット"
+
+  ApiKey:
+    labels: ["ApiKey", "Credential"]
+    properties:
+      - id: "String (primary key)"
+      - key_hash: "String"
+      - created_at: "DateTime"
+      - expires_at: "DateTime"
+      - scopes: "Array<String>"
+      - usage_count: "Integer"
+    usage: "API認証キー"
+
+  Device:
+    labels: ["Device"]
+    properties:
+      - fingerprint: "String (primary key)"
+      - type: "String (mobile/desktop/server)"
+      - os: "String"
+      - browser: "String"
+      - first_seen: "DateTime"
+      - last_seen: "DateTime"
+      - trusted: "Boolean"
+    usage: "ユーザーデバイス"
+
+  Organization:
+    labels: ["Organization", "Group"]
+    properties:
+      - id: "String (primary key)"
+      - name: "String"
+      - type: "String (company/department/team)"
+      - created_at: "DateTime"
+      - parent_id: "String (optional)"
+    usage: "組織・グループ構造"
+
+  Session:
+    labels: ["Session"]
+    properties:
+      - id: "String (primary key)"
+      - started_at: "DateTime"
+      - ended_at: "DateTime (optional)"
+      - ip_address: "String"
+      - status: "String (active/expired/terminated)"
+    usage: "ユーザーセッション"
+
+relationship_definitions:
+  user_relationships:
+    MEMBER_OF:
+      from: "User"
+      to: "Organization"
+      properties:
+        - role: "String"
+        - joined_at: "DateTime"
+        - permissions: "Array<String>"
+      usage: "組織メンバーシップ"
+
+    OWNS:
+      from: "User"
+      to: "Resource"
+      properties:
+        - created_at: "DateTime"
+        - access_level: "String"
+      usage: "リソース所有権"
+
+    FOLLOWS:
+      from: "User"
+      to: "User"
+      properties:
+        - since: "DateTime"
+        - interaction_count: "Integer"
+      usage: "ユーザー間フォロー関係"
+
+    TRUSTS:
+      from: "User"
+      to: "Device"
+      properties:
+        - trusted_since: "DateTime"
+        - trust_level: "Float (0.0-1.0)"
+      usage: "デバイス信頼関係"
+
+  access_relationships:
+    ACCESSED:
+      from: "User"
+      to: "Resource"
+      properties:
+        - accessed_at: "DateTime"
+        - access_type: "String (read/write/delete)"
+        - success: "Boolean"
+        - ip_address: "String"
+      usage: "リソースアクセス履歴"
+
+    USED_KEY:
+      from: "User"
+      to: "ApiKey"
+      properties:
+        - used_at: "DateTime"
+        - endpoint: "String"
+        - success: "Boolean"
+      usage: "APIキー使用履歴"
+
+    AUTHENTICATED_FROM:
+      from: "User"
+      to: "Device"
+      properties:
+        - authenticated_at: "DateTime"
+        - method: "String (password/mfa/biometric)"
+        - success: "Boolean"
+      usage: "認証履歴"
+
+  organizational_relationships:
+    PARENT_OF:
+      from: "Organization"
+      to: "Organization"
+      properties:
+        - established_at: "DateTime"
+      usage: "組織階層"
+
+    COLLABORATES_WITH:
+      from: "Organization"
+      to: "Organization"
+      properties:
+        - since: "DateTime"
+        - collaboration_type: "String"
+        - strength: "Float"
+      usage: "組織間連携"
+
+use_cases:
+  security_analytics:
+    unusual_access_patterns:
+      description: "通常と異なるアクセスパターンの検出"
+      cypher_example: |
+        MATCH (u:User)-[a:ACCESSED]->(r:Resource)
+        WHERE a.accessed_at > datetime() - duration('P7D')
+        WITH u, collect(r) as recent_resources
+        MATCH (u)-[hist:ACCESSED]->(hr:Resource)
+        WHERE hist.accessed_at < datetime() - duration('P30D')
+        WITH u, recent_resources, collect(hr) as historical_resources
+        RETURN u.id, [r IN recent_resources WHERE NOT r IN historical_resources] as anomalous_resources
+
+    privilege_escalation_detection:
+      description: "権限昇格の検出"
+      cypher_example: |
+        MATCH (u:User)-[m1:MEMBER_OF]->(o:Organization)
+        WHERE m1.joined_at > datetime() - duration('P30D')
+        WITH u, m1.permissions as new_perms
+        MATCH (u)-[m2:MEMBER_OF]->(o2:Organization)
+        WHERE m2.joined_at < m1.joined_at
+        WITH u, new_perms, collect(m2.permissions) as old_perms
+        WHERE size(new_perms) > size(old_perms[0])
+        RETURN u.id, new_perms, old_perms
+
+    device_sharing_detection:
+      description: "デバイス共有の検出"
+      cypher_example: |
+        MATCH (d:Device)<-[auth:AUTHENTICATED_FROM]-(u:User)
+        WHERE auth.authenticated_at > datetime() - duration('P1D')
+        WITH d, collect(DISTINCT u) as users
+        WHERE size(users) > 1
+        RETURN d.fingerprint, [u IN users | u.id] as shared_users
+
+  recommendation_system:
+    resource_recommendation:
+      description: "ユーザーの関係性に基づくリソース推薦"
+      cypher_example: |
+        MATCH (u:User {id: $user_id})-[:FOLLOWS]->(friend:User)
+        MATCH (friend)-[:ACCESSED]->(r:Resource)
+        WHERE NOT (u)-[:ACCESSED]->(r)
+        WITH r, count(friend) as friend_access_count
+        ORDER BY friend_access_count DESC
+        LIMIT 10
+        RETURN r.id, r.name, friend_access_count
+
+    collaboration_suggestion:
+      description: "協業相手の提案"
+      cypher_example: |
+        MATCH (u:User {id: $user_id})-[:OWNS]->(r:Resource)<-[:ACCESSED]-(other:User)
+        WHERE u <> other AND NOT (u)-[:FOLLOWS]->(other)
+        WITH other, count(r) as shared_resource_count
+        ORDER BY shared_resource_count DESC
+        LIMIT 5
+        RETURN other.id, other.name, shared_resource_count
+
+    team_formation:
+      description: "チーム編成の最適化"
+      cypher_example: |
+        MATCH (u:User)-[:MEMBER_OF]->(o:Organization {id: $org_id})
+        MATCH (u)-[:ACCESSED]->(r:Resource)
+        WITH u, collect(DISTINCT r.type) as skills
+        MATCH (u2:User)-[:MEMBER_OF]->(o)
+        WHERE u <> u2
+        WITH u, u2, skills, collect(DISTINCT r2.type) as u2_skills
+        RETURN u.id, u2.id, 
+               size([s IN skills WHERE s IN u2_skills]) as skill_overlap,
+               size(skills + u2_skills) - size([s IN skills WHERE s IN u2_skills]) as complementary_skills
+
+  organizational_analysis:
+    influence_mapping:
+      description: "組織内影響力の分析"
+      cypher_example: |
+        MATCH (u:User)-[:MEMBER_OF]->(o:Organization)
+        OPTIONAL MATCH (u)<-[:FOLLOWS]-(follower:User)
+        OPTIONAL MATCH (u)-[:OWNS]->(r:Resource)<-[:ACCESSED]-(accessor:User)
+        WITH u, count(DISTINCT follower) as followers, count(DISTINCT accessor) as resource_users
+        RETURN u.id, u.name, followers, resource_users, 
+               (followers * 0.6 + resource_users * 0.4) as influence_score
+        ORDER BY influence_score DESC
+
+    knowledge_graph:
+      description: "知識・スキルネットワーク"
+      cypher_example: |
+        MATCH (u:User)-[:ACCESSED]->(r:Resource)
+        WITH r.type as skill, collect(u) as users
+        UNWIND users as u1
+        UNWIND users as u2
+        WHERE u1 <> u2
+        WITH u1, u2, count(skill) as shared_skills
+        WHERE shared_skills >= 3
+        RETURN u1.id, u2.id, shared_skills
+
+  audit_and_compliance:
+    access_trail:
+      description: "完全なアクセス証跡"
+      cypher_example: |
+        MATCH path = (u:User)-[:ACCESSED]->(r:Resource {id: $resource_id})
+        WHERE EXISTS((u)-[:MEMBER_OF]->(:Organization))
+        RETURN u.id, u.name, 
+               [(u)-[:MEMBER_OF]->(o) | o.name][0] as organization,
+               path
+
+    permission_inheritance:
+      description: "権限継承の追跡"
+      cypher_example: |
+        MATCH (u:User {id: $user_id})-[:MEMBER_OF*1..3]->(o:Organization)
+        MATCH (o)-[:HAS_PERMISSION]->(r:Resource)
+        RETURN u.id, o.name, r.id, length(path) as inheritance_depth
+
+rust_implementation:
+  graph_client:
+    connection: |
+      use neo4rs::{Graph, Query, ConfigBuilder};
+      
+      pub struct Neo4jClient {
+          graph: Graph,
+      }
+      
+      impl Neo4jClient {
+          pub async fn new(uri: &str, user: &str, password: &str) -> Result<Self, neo4rs::Error> {
+              let config = ConfigBuilder::default()
+                  .uri(uri)
+                  .user(user)
+                  .password(password)
+                  .db("neo4j")
+                  .build()?;
+              
+              let graph = Graph::connect(config).await?;
+              Ok(Self { graph })
+          }
+      }
+
+  node_operations:
+    create_user: |
+      pub async fn create_user(&self, user_id: &str, email: &str, name: &str) -> Result<(), GraphError> {
+          let query = Query::new("
+              CREATE (u:User:Person {
+                  id: $user_id,
+                  email: $email,
+                  name: $name,
+                  created_at: datetime(),
+                  status: 'active'
+              })
+          ")
+          .param("user_id", user_id)
+          .param("email", email)
+          .param("name", name);
+          
+          self.graph.execute(query).await?;
+          Ok(())
+      }
+
+    create_relationship: |
+      pub async fn add_organization_membership(
+          &self, 
+          user_id: &str, 
+          org_id: &str, 
+          role: &str,
+          permissions: Vec<String>
+      ) -> Result<(), GraphError> {
+          let query = Query::new("
+              MATCH (u:User {id: $user_id})
+              MATCH (o:Organization {id: $org_id})
+              CREATE (u)-[:MEMBER_OF {
+                  role: $role,
+                  joined_at: datetime(),
+                  permissions: $permissions
+              }]->(o)
+          ")
+          .param("user_id", user_id)
+          .param("org_id", org_id)
+          .param("role", role)
+          .param("permissions", permissions);
+          
+          self.graph.execute(query).await?;
+          Ok(())
+      }
+
+  analysis_services:
+    security_analyzer: |
+      pub struct SecurityAnalyzer {
+          client: Neo4jClient,
+      }
+      
+      impl SecurityAnalyzer {
+          pub async fn detect_unusual_access(&self, user_id: &str) -> Result<Vec<AnomalyReport>, GraphError> {
+              let query = Query::new("
+                  MATCH (u:User {id: $user_id})-[a:ACCESSED]->(r:Resource)
+                  WHERE a.accessed_at > datetime() - duration('P7D')
+                  WITH u, collect(r) as recent_resources
+                  MATCH (u)-[hist:ACCESSED]->(hr:Resource)
+                  WHERE hist.accessed_at < datetime() - duration('P30D')
+                  WITH recent_resources, collect(hr) as historical_resources
+                  RETURN [r IN recent_resources WHERE NOT r IN historical_resources] as anomalies
+              ").param("user_id", user_id);
+              
+              let mut result = self.client.graph.execute(query).await?;
+              // Process results...
+              Ok(vec![])
+          }
+      }
+
+    recommender: |
+      pub struct RecommendationEngine {
+          client: Neo4jClient,
+      }
+      
+      impl RecommendationEngine {
+          pub async fn recommend_resources(&self, user_id: &str, limit: usize) -> Result<Vec<ResourceRecommendation>, GraphError> {
+              let query = Query::new("
+                  MATCH (u:User {id: $user_id})-[:FOLLOWS]->(friend:User)
+                  MATCH (friend)-[:ACCESSED]->(r:Resource)
+                  WHERE NOT (u)-[:ACCESSED]->(r)
+                  WITH r, count(friend) as friend_access_count
+                  ORDER BY friend_access_count DESC
+                  LIMIT $limit
+                  RETURN r.id, r.name, r.type, friend_access_count
+              ")
+              .param("user_id", user_id)
+              .param("limit", limit as i64);
+              
+              let mut result = self.client.graph.execute(query).await?;
+              // Process results...
+              Ok(vec![])
+          }
+      }
+
+data_models:
+  node_structs:
+    User: |
+      #[derive(Debug, Clone, Serialize, Deserialize)]
+      pub struct UserNode {
+          pub id: String,
+          pub email: String,
+          pub name: String,
+          pub created_at: DateTime<Utc>,
+          pub last_active: Option<DateTime<Utc>>,
+          pub role: String,
+          pub status: UserStatus,
+      }
+
+    Resource: |
+      #[derive(Debug, Clone, Serialize, Deserialize)]
+      pub struct ResourceNode {
+          pub id: String,
+          pub name: String,
+          pub resource_type: ResourceType,
+          pub owner_id: String,
+          pub created_at: DateTime<Utc>,
+          pub sensitivity_level: SensitivityLevel,
+      }
+
+  relationship_structs:
+    AccessRelation: |
+      #[derive(Debug, Clone, Serialize, Deserialize)]
+      pub struct AccessRelation {
+          pub accessed_at: DateTime<Utc>,
+          pub access_type: AccessType,
+          pub success: bool,
+          pub ip_address: String,
+          pub duration_ms: Option<u64>,
+      }
+
+    MembershipRelation: |
+      #[derive(Debug, Clone, Serialize, Deserialize)]
+      pub struct MembershipRelation {
+          pub role: String,
+          pub joined_at: DateTime<Utc>,
+          pub permissions: Vec<String>,
+          pub is_active: bool,
+      }
+
+schema_management:
+  constraints: |
+    // ユニーク制約
+    CREATE CONSTRAINT user_id_unique FOR (u:User) REQUIRE u.id IS UNIQUE;
+    CREATE CONSTRAINT user_email_unique FOR (u:User) REQUIRE u.email IS UNIQUE;
+    CREATE CONSTRAINT resource_id_unique FOR (r:Resource) REQUIRE r.id IS UNIQUE;
+    CREATE CONSTRAINT org_id_unique FOR (o:Organization) REQUIRE o.id IS UNIQUE;
+    CREATE CONSTRAINT device_fingerprint_unique FOR (d:Device) REQUIRE d.fingerprint IS UNIQUE;
+
+  indexes: |
+    // パフォーマンス用インデックス
+    CREATE INDEX user_email_index FOR (u:User) ON (u.email);
+    CREATE INDEX user_status_index FOR (u:User) ON (u.status);
+    CREATE INDEX resource_type_index FOR (r:Resource) ON (r.type);
+    CREATE INDEX resource_owner_index FOR (r:Resource) ON (r.owner_id);
+    CREATE INDEX access_timestamp_index FOR ()-[r:ACCESSED]-() ON (r.accessed_at);
+    CREATE INDEX membership_role_index FOR ()-[r:MEMBER_OF]-() ON (r.role);
+
+  migration_strategy:
+    version_control: "Cypherスクリプトでバージョン管理"
+    migration_tracking: "Migrationノードで実行履歴管理"
+    rollback_support: "逆方向スクリプトでロールバック対応"
+
+integration_patterns:
+  cqrs_integration:
+    command_side: |
+      // コマンド実行時にグラフ更新
+      pub async fn handle_create_user_command(&self, cmd: CreateUserCommand) -> Result<(), Error> {
+          // 1. MySQL にユーザー作成
+          self.user_repository.create(&cmd.user).await?;
+          
+          // 2. Neo4j にノード作成
+          self.graph_client.create_user(&cmd.user.id, &cmd.user.email, &cmd.user.name).await?;
+          
+          // 3. イベント発行
+          self.event_publisher.publish(UserCreatedEvent::new(cmd.user.id)).await?;
+          Ok(())
+      }
+
+    event_sourcing: |
+      // ドメインイベントからグラフ更新
+      pub async fn handle_user_accessed_resource_event(&self, event: UserAccessedResourceEvent) -> Result<(), Error> {
+          self.graph_client.record_access(
+              &event.user_id,
+              &event.resource_id,
+              &event.access_type,
+              &event.timestamp,
+              event.success
+          ).await?;
+          Ok(())
+      }
+
+  api_integration:
+    middleware: |
+      // API呼び出し時の関係性記録
+      pub async fn record_api_usage(
+          &self,
+          user_id: &str,
+          api_key_id: &str,
+          endpoint: &str,
+          success: bool
+      ) -> Result<(), Error> {
+          self.graph_client.record_api_key_usage(
+              user_id,
+              api_key_id,
+              endpoint,
+              Utc::now(),
+              success
+          ).await?;
+          Ok(())
+      }
+
+performance_optimization:
+  query_optimization:
+    - "インデックス活用"
+    - "適切なCYPHERクエリ設計"
+    - "結果セット制限"
+    - "パラメータ化クエリ"
+
+  data_modeling:
+    - "適切なノードラベル設計"
+    - "関係性の方向性最適化"
+    - "プロパティの正規化"
+    - "不要な関係性の削除"
+
+  connection_management:
+    - "コネクションプール設定"
+    - "非同期処理活用"
+    - "バッチ処理最適化"
+    - "メモリ使用量監視"
+
+monitoring_and_maintenance:
+  health_checks:
+    - "Neo4jサーバー接続確認"
+    - "クエリレスポンス時間監視"
+    - "メモリ使用量監視"
+    - "ディスク容量監視"
+
+  data_maintenance:
+    - "古い関係性の定期削除"
+    - "インデックス再構築"
+    - "統計情報更新"
+    - "データ整合性チェック"
+
+  backup_strategy:
+    - "定期的なグラフダンプ"
+    - "増分バックアップ"
+    - "災害復旧計画"
+    - "データ移行戦略"
+
+testing_strategy:
+  unit_tests:
+    - "個別クエリ機能"
+    - "ノード・関係性作成"
+    - "データ変換ロジック"
+    - "エラーハンドリング"
+
+  integration_tests:
+    - "Neo4j接続・操作"
+    - "複雑なクエリパターン"
+    - "パフォーマンステスト"
+    - "データ整合性テスト"
+
+  graph_specific_tests:
+    - "関係性の双方向性"
+    - "パス探索の正確性"
+    - "集約クエリの妥当性"
+    - "スケーラビリティテスト"
+
+deployment_considerations:
+  environment_setup:
+    - "Neo4j Enterprise vs Community"
+    - "クラスター構成設計"
+    - "セキュリティ設定"
+    - "ネットワーク構成"
+
+  configuration:
+    - "メモリ設定調整"
+    - "GCパラメータ最適化"
+    - "ネットワーク設定"
+    - "ログ設定"
+
+  monitoring_tools:
+    - "Neo4j Browser"
+    - "APOCプラグイン"
+    - "Prometheus metrics"
+    - "Grafana ダッシュボード"

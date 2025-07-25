@@ -1,0 +1,440 @@
+# MongoDB Logging Strategy Implementation Guide
+# Cursorでの実装用ガイド
+
+project_structure:
+  src/:
+    - lib.rs
+    - main.rs
+    logging/:
+      - mod.rs
+      - collector.rs        # MongoLogCollector メイン実装
+      - models.rs          # ログデータ構造定義
+      - config.rs          # コレクション設定
+      - macros.rs          # ログ用マクロ
+    database/:
+      - mod.rs
+      - mongodb.rs         # MongoDB接続・設定
+    errors/:
+      - mod.rs
+      - logging_errors.rs  # ログ関連エラー定義
+
+dependencies:
+  Cargo.toml: |
+    [dependencies]
+    mongodb = "2.8"
+    serde = { version = "1.0", features = ["derive"] }
+    chrono = { version = "0.4", features = ["serde"] }
+    uuid = { version = "1.0", features = ["v4"] }
+    tokio = { version = "1.0", features = ["full"] }
+    thiserror = "1.0"
+    tracing = "0.1"
+
+core_enums:
+  LogLevel:
+    variants:
+      - Debug      # 開発・デバッグ情報
+      - Info       # 通常の動作情報
+      - Warning    # 警告レベル
+      - Error      # エラー発生
+      - Critical   # システム停止レベル
+
+  LogCategory:
+    variants:
+      - Authentication  # 認証関連
+      - Authorization   # 認可関連
+      - ApiUsage       # API使用状況
+      - DatabaseOperation # DB操作
+      - BusinessLogic  # ビジネスロジック
+      - Security       # セキュリティイベント
+      - Performance    # パフォーマンス
+      - Audit         # 監査ログ
+      - System        # システムイベント
+      - Integration   # 外部連携
+
+  SecuritySeverity:
+    variants:
+      - Low       # 情報レベル
+      - Medium    # 注意レベル
+      - High      # 警告レベル
+      - Critical  # 緊急レベル
+
+log_context_types:
+  UserAction:
+    fields:
+      - user_id: String
+      - action: String
+      - resource: Option<String>
+      - ip_address: Option<String>
+      - user_agent: Option<String>
+    usage: "ユーザーの操作ログ"
+
+  ApiRequest:
+    fields:
+      - endpoint: String
+      - method: String
+      - status_code: u16
+      - duration_ms: u64
+      - request_size: Option<u64>
+      - response_size: Option<u64>
+    usage: "API リクエスト情報"
+
+  DatabaseQuery:
+    fields:
+      - table: String
+      - operation: String
+      - duration_ms: u64
+      - rows_affected: Option<u64>
+      - query_complexity: Option<String>
+    usage: "データベース操作ログ"
+
+  SecurityEvent:
+    fields:
+      - event_type: String
+      - severity: SecuritySeverity
+      - source_ip: Option<String>
+      - details: serde_json::Value
+    usage: "セキュリティ関連イベント"
+
+  ErrorEvent:
+    fields:
+      - error_code: String
+      - error_message: String
+      - stack_trace: Option<String>
+      - module: String
+      - function: String
+    usage: "エラー・例外情報"
+
+  PerformanceMetric:
+    fields:
+      - metric_name: String
+      - value: f64
+      - unit: String
+      - threshold: Option<f64>
+    usage: "パフォーマンス指標"
+
+  AuditEvent:
+    fields:
+      - action: String
+      - resource_type: String
+      - resource_id: String
+      - before_state: Option<serde_json::Value>
+      - after_state: Option<serde_json::Value>
+    usage: "監査ログ（コンプライアンス用）"
+
+structured_log_schema:
+  core_fields:
+    - id: "ObjectId (MongoDB自動生成)"
+    - timestamp: "DateTime<Utc>"
+    - level: "LogLevel"
+    - category: "LogCategory"
+    - service: "String (サービス名)"
+    - version: "String (バージョン)"
+    - environment: "String (prod/dev/test)"
+    - message: "String (人間可読メッセージ)"
+    - context: "LogContext (構造化データ)"
+
+  tracing_fields:
+    - correlation_id: "Option<String> (リクエスト追跡)"
+    - trace_id: "Option<String> (分散トレーシング)"
+    - span_id: "Option<String> (スパンID)"
+    - parent_span_id: "Option<String> (親スパン)"
+
+  request_context:
+    - user_id: "Option<String>"
+    - session_id: "Option<String>"
+    - request_id: "Option<String>"
+
+  metadata:
+    - tags: "Vec<String> (検索用タグ)"
+    - custom_fields: "HashMap<String, Value> (追加データ)"
+    - expires_at: "Option<DateTime<Utc>> (TTL)"
+
+collection_strategy:
+  app_logs:
+    description: "通常のアプリケーションログ"
+    ttl_days: 30
+    max_size_mb: 1000
+    use_cases:
+      - "一般的な動作ログ"
+      - "Info/Debug レベル"
+      - "日常的な監視"
+
+  audit_logs:
+    description: "監査ログ（コンプライアンス用）"
+    ttl_days: 2555  # 約7年
+    max_size_mb: null
+    use_cases:
+      - "法的要件対応"
+      - "コンプライアンス監査"
+      - "重要な操作履歴"
+
+  security_logs:
+    description: "セキュリティイベント"
+    ttl_days: 365
+    max_size_mb: 5000
+    use_cases:
+      - "不正アクセス検知"
+      - "セキュリティ分析"
+      - "脅威調査"
+
+  performance_logs:
+    description: "パフォーマンス指標"
+    ttl_days: 90
+    max_size_mb: 2000
+    use_cases:
+      - "性能監視"
+      - "ボトルネック特定"
+      - "SLA監視"
+
+  error_logs:
+    description: "エラー・例外ログ"
+    ttl_days: 180
+    max_size_mb: 3000
+    use_cases:
+      - "障害対応"
+      - "エラー分析"
+      - "システム診断"
+
+routing_logic:
+  collection_determination:
+    audit_logs: "category == Audit"
+    security_logs: "category == Security"
+    performance_logs: "category == Performance"
+    error_logs: "level == Error || level == Critical"
+    app_logs: "上記以外のすべて"
+
+  ttl_assignment:
+    audit: "7年 (法的要件)"
+    security: "1年 (分析要件)"
+    performance: "3ヶ月 (監視要件)"
+    error: "6ヶ月 (障害対応)"
+    app: "1ヶ月 (運用監視)"
+
+mongodb_indexes:
+  core_indexes:
+    - "{ timestamp: 1, level: 1 }"
+    - "{ category: 1, timestamp: -1 }"
+    - "{ user_id: 1, timestamp: -1 }"
+    - "{ trace_id: 1 }"
+    - "{ correlation_id: 1 }"
+    - "{ service: 1, timestamp: -1 }"
+    - "{ tags: 1 }"
+
+  ttl_indexes:
+    automatic_cleanup: "{ timestamp: 1 } with expireAfterSeconds"
+    custom_ttl: "{ expires_at: 1 } with expireAfterSeconds: 0"
+
+  text_search:
+    message_search: "{ message: 'text' }"
+    full_text: "{ message: 'text', 'context.error_message': 'text' }"
+
+core_methods:
+  MongoLogCollector:
+    initialization:
+      new: "(client: Client, database_name: &str) -> Result<Self>"
+      setup_collection_indexes: "(database, config) -> Result<()>"
+
+    storage_methods:
+      store_log: "(log: StructuredLog) -> Result<()>"
+      determine_collection_name: "(log: &StructuredLog) -> String"
+      set_default_ttl: "(log: StructuredLog) -> StructuredLog"
+
+    convenience_methods:
+      log_user_action: "(user_id, action, resource, ip) -> Result<()>"
+      log_api_request: "(endpoint, method, status, duration, user_id) -> Result<()>"
+      log_database_operation: "(table, operation, duration, rows) -> Result<()>"
+      log_security_event: "(event_type, severity, ip, details) -> Result<()>"
+      log_error: "(code, message, module, function, stack) -> Result<()>"
+      log_audit_event: "(user_id, action, resource_type, resource_id, before, after) -> Result<()>"
+
+    query_methods:
+      get_logs_by_user: "(user_id: &str, limit: Option<i64>) -> Result<Vec<StructuredLog>>"
+      get_logs_by_correlation_id: "(correlation_id: &str) -> Result<Vec<StructuredLog>>"
+      get_error_logs_summary: "(hours: i64) -> Result<Vec<Document>>"
+
+usage_patterns:
+  basic_logging:
+    user_action: |
+      collector.log_user_action(
+          "user_123", 
+          "login", 
+          Some("dashboard"), 
+          Some("192.168.1.1")
+      ).await?
+
+    api_request: |
+      collector.log_api_request(
+          "/api/users", 
+          "GET", 
+          200, 
+          150, 
+          Some("user_123")
+      ).await?
+
+    security_event: |
+      let details = json!({
+          "failed_attempts": 5,
+          "account_locked": true
+      });
+      collector.log_security_event(
+          "account_lockout",
+          SecuritySeverity::High,
+          Some("192.168.1.100"),
+          details
+      ).await?
+
+  advanced_logging:
+    with_tracing: |
+      let log = StructuredLog::new(level, category, message, context)
+          .with_trace_context(trace_id, span_id, parent_span_id)
+          .with_user_context(user_id, session_id)
+          .with_correlation_id(correlation_id)
+          .with_tags(vec!["important", "monitored"])
+          .with_custom_field("request_id", request_id);
+      collector.store_log(log).await?
+
+    macro_usage: |
+      log_structured!(
+          collector,
+          LogLevel::Info,
+          LogCategory::BusinessLogic,
+          "Order processed successfully",
+          LogContext::UserAction { /* ... */ }
+      )?
+
+query_examples:
+  correlation_tracking: |
+    // 特定のリクエストに関連するすべてのログを取得
+    let related_logs = collector
+        .get_logs_by_correlation_id(&correlation_id)
+        .await?;
+
+  user_activity: |
+    // 特定ユーザーの最近の活動ログ
+    let user_logs = collector
+        .get_logs_by_user("user_123", Some(50))
+        .await?;
+
+  error_analysis: |
+    // 過去24時間のエラー集計
+    let error_summary = collector
+        .get_error_logs_summary(24)
+        .await?;
+
+  custom_aggregation: |
+    // カスタム集約クエリ
+    let pipeline = vec![
+        doc! { "$match": { "category": "ApiUsage", "timestamp": { "$gte": since } } },
+        doc! { "$group": { "_id": "$context.endpoint", "count": { "$sum": 1 } } },
+        doc! { "$sort": { "count": -1 } }
+    ];
+
+implementation_phases:
+  phase_1_foundation:
+    1. "エラー型定義 (errors/logging_errors.rs)"
+    2. "基本データ構造 (logging/models.rs)"
+    3. "MongoDB接続設定 (database/mongodb.rs)"
+    4. "基本的なログ収集機能"
+
+  phase_2_core_features:
+    1. "コレクション自動ルーティング"
+    2. "TTL・インデックス設定"
+    3. "構造化ログコンテキスト"
+    4. "基本的な便利メソッド"
+
+  phase_3_advanced_features:
+    1. "トレーシング統合"
+    2. "カスタムフィールド対応"
+    3. "集約クエリ機能"
+    4. "バッチ処理対応"
+
+  phase_4_optimization:
+    1. "パフォーマンス最適化"
+    2. "マクロ整備"
+    3. "テスト充実"
+    4. "ドキュメント完成"
+
+testing_strategy:
+  unit_tests:
+    - "ログ構造体の作成・変換"
+    - "コレクション名決定ロジック"
+    - "TTL設定ロジック"
+    - "各種便利メソッド"
+
+  integration_tests:
+    - "MongoDB接続・操作"
+    - "インデックス作成"
+    - "データ挿入・取得"
+    - "TTL動作確認"
+
+  performance_tests:
+    - "大量ログ挿入性能"
+    - "検索クエリ性能"
+    - "集約処理性能"
+    - "メモリ使用量"
+
+configuration:
+  environment_variables:
+    - "MONGODB_URL: MongoDB接続文字列"
+    - "LOG_DATABASE_NAME: ログ用データベース名"
+    - "ENVIRONMENT: prod/dev/test"
+    - "LOG_LEVEL: 最小ログレベル"
+
+  runtime_config:
+    service_name: "env!('CARGO_PKG_NAME')"
+    service_version: "env!('CARGO_PKG_VERSION')"
+    environment: "std::env::var('ENVIRONMENT')"
+
+monitoring_metrics:
+  collection_metrics:
+    - "ログ挿入レート (logs/second)"
+    - "コレクション別ログ数"
+    - "エラーログ発生率"
+    - "ディスク使用量"
+
+  performance_metrics:
+    - "挿入レイテンシ"
+    - "クエリレスポンス時間"
+    - "インデックス効率"
+    - "TTL処理性能"
+
+best_practices:
+  logging_guidelines:
+    - "適切なログレベル設定"
+    - "構造化データの一貫性"
+    - "センシティブ情報の除外"
+    - "相関ID必須設定"
+
+  performance_optimization:
+    - "バッチ挿入の活用"
+    - "適切なインデックス設計"
+    - "TTL設定による自動クリーンアップ"
+    - "クエリパフォーマンス監視"
+
+  operational_considerations:
+    - "ログサイズ監視"
+    - "レプリケーション設定"
+    - "バックアップ戦略"
+    - "災害復旧計画"
+
+integration_points:
+  cqrs_integration:
+    command_side: "コマンド実行時のログ記録"
+    event_store: "ドメインイベントとログの連携"
+    saga_logging: "Sagaステップ実行ログ"
+
+  api_integration:
+    middleware: "リクエスト/レスポンスログ"
+    error_handling: "API エラーログ"
+    authentication: "認証・認可ログ"
+
+  security_integration:
+    audit_trail: "セキュリティ監査証跡"
+    threat_detection: "異常検知ログ"
+    compliance: "コンプライアンス要件対応"
+
+future_extensions:
+  elk_integration: "Elasticsearch連携準備"
+  real_time_analytics: "リアルタイム分析基盤"
+  log_streaming: "ログストリーミング対応"
+  multi_tenant: "マルチテナント対応"
