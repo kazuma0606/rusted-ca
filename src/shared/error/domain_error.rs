@@ -14,6 +14,12 @@ pub enum DomainError {
     #[error("Invalid password: {reason}")]
     InvalidPassword { reason: String },
 
+    #[error("Invalid value: {0}")]
+    InvalidValue(String),
+
+    #[error("Invalid operation: {0}")]
+    InvalidOperation(String),
+
     // Business Rule Violations
     #[error("Business rule violation: {rule} - {message}")]
     BusinessRuleViolation { rule: String, message: String },

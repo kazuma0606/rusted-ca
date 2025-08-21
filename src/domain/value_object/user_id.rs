@@ -2,14 +2,15 @@
 // UserId タイプセーフID
 // 2025/7/8
 
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UserId(pub String);
 
 impl UserId {
-    pub fn new(value: String) -> Self {
-        Self(value)
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
     }
 
     pub fn value(&self) -> &str {

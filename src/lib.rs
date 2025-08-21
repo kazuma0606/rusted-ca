@@ -64,8 +64,10 @@ pub mod shared {
 pub mod domain {
     pub mod entity {
         pub mod user;
+        pub mod log_entry;
 
         // pub use user::*;
+        // pub use log_entry::*;
     }
 
     pub mod entity_sqlx {
@@ -80,6 +82,17 @@ pub mod domain {
         pub mod phone;
         pub mod user_id;
         pub mod user_name;
+        
+        // Logging-related value objects
+        pub mod analysis_status;
+        pub mod architecture_layer;
+        pub mod http_context;
+        pub mod log_id;
+        pub mod log_level;
+        pub mod log_metadata;
+        pub mod operation;
+        pub mod request_id;
+        pub mod user_context;
 
         pub use birth_date::*;
         pub use email::*;
@@ -88,14 +101,27 @@ pub mod domain {
         pub use phone::*;
         pub use user_id::*;
         pub use user_name::*;
+        
+        // Logging exports
+        pub use analysis_status::*;
+        pub use architecture_layer::*;
+        pub use http_context::*;
+        pub use log_id::*;
+        pub use log_level::*;
+        pub use log_metadata::*;
+        pub use operation::*;
+        pub use request_id::*;
+        pub use user_context::*;
     }
 
     pub mod repository {
         pub mod user_command_repository;
         pub mod user_query_repository;
+        pub mod log_repository;
 
         // pub use user_command_repository::*;
         // pub use user_query_repository::*;
+        // pub use log_repository::*;
     }
 
     pub mod service {
