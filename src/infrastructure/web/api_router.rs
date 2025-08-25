@@ -12,6 +12,7 @@ use crate::infrastructure::di::container::DIContainer;
 use crate::presentation::dto::update_user_request::UpdateUserRequest;
 use crate::presentation::dto::user_create_request_sqlx::UserCreateRequestSqlx;
 use crate::presentation::dto::user_deleted_response::UserDeletedResponse;
+use crate::presentation::router::log_router::log_router;
 use crate::shared::middleware::logging_middleware::LoggingLayer;
 use axum::{
     Json, Router,
@@ -33,6 +34,9 @@ pub fn build_api_router(di: Arc<DIContainer>) -> Router {
         
         // ヘルスチェックAPI
         .route("/health", get(health_check_handler))
+        
+        // ログ管理API
+        .nest("/api/logs", log_router(di.log_controller.clone()))
         
         // ミドルウェアスタック（順序重要）
         .layer(

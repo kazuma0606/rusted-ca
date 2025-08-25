@@ -19,7 +19,7 @@ impl ManageLogUsecase {
 
     pub async fn update_analysis_status(
         &self,
-        log_id: LogId,
+        log_id: &LogId,
         new_status: AnalysisStatus,
     ) -> ApplicationResult<()> {
         // Validate status transition if needed
@@ -46,7 +46,7 @@ impl ManageLogUsecase {
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))
     }
 
-    pub async fn add_tags(&self, log_id: LogId, tags: Vec<String>) -> ApplicationResult<()> {
+    pub async fn add_tags(&self, log_id: &LogId, tags: Vec<String>) -> ApplicationResult<()> {
         // Validate tags
         for tag in &tags {
             self.validate_tag(tag)?;
@@ -68,7 +68,7 @@ impl ManageLogUsecase {
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))
     }
 
-    pub async fn remove_tag(&self, log_id: LogId, tag: String) -> ApplicationResult<()> {
+    pub async fn remove_tag(&self, log_id: &LogId, tag: &str) -> ApplicationResult<()> {
         // Check if log exists
         if self.log_repository.find_by_id(&log_id).await
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))?
@@ -80,7 +80,7 @@ impl ManageLogUsecase {
         }
 
         self.log_repository
-            .remove_tag(&log_id, &tag)
+            .remove_tag(&log_id, tag)
             .await
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))
     }
@@ -126,7 +126,7 @@ impl ManageLogUsecase {
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))
     }
 
-    pub async fn cleanup_old_logs(
+    pub async fn delete_logs_older_than(
         &self,
         cutoff_time: chrono::DateTime<chrono::Utc>,
     ) -> ApplicationResult<usize> {
@@ -151,9 +151,24 @@ impl ManageLogUsecase {
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))
     }
 
+    pub async fn count_logs_older_than(
+        &self,
+        cutoff_time: chrono::DateTime<chrono::Utc>,
+    ) -> ApplicationResult<usize> {
+        use crate::domain::repository::log_repository::LogSearchCriteria;
+
+        let criteria = LogSearchCriteria::new()
+            .with_end_time(cutoff_time);
+            
+        self.log_repository
+            .count_by_criteria(&criteria)
+            .await
+            .map_err(|e| ApplicationError::RepositoryError(e.to_string()))
+    }
+
     pub async fn start_log_analysis(&self, log_id: LogId) -> ApplicationResult<()> {
         // Update status to Processing
-        self.update_analysis_status(log_id.clone(), AnalysisStatus::Processing)
+        self.update_analysis_status(&log_id, AnalysisStatus::Processing)
             .await?;
 
         // In a real implementation, this would:
@@ -183,7 +198,7 @@ impl ManageLogUsecase {
         let mut failed_ids = Vec::new();
 
         for log_id in log_ids {
-            match self.add_tags(log_id.clone(), tags.clone()).await {
+            match self.add_tags(&log_id, tags.clone()).await {
                 Ok(()) => successful_ids.push(log_id),
                 Err(_) => failed_ids.push(log_id),
             }

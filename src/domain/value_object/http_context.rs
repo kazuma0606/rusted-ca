@@ -38,6 +38,11 @@ impl HttpContext {
         &self.path
     }
 
+    // endpointはpathのエイリアス
+    pub fn endpoint(&self) -> &str {
+        &self.path
+    }
+
     pub fn status_code(&self) -> u16 {
         self.status_code
     }

@@ -12,6 +12,7 @@ use crate::application::usecases::logging::{
     search_logs_usecase::SearchLogsUsecase,
     manage_log_usecase::ManageLogUsecase,
 };
+use crate::presentation::controller::log_controller::LogController;
 
 use crate::domain::repository::log_repository::LogRepositoryInterface;
 use crate::infrastructure::repository::{
@@ -50,6 +51,9 @@ pub struct DIContainer {
     
     // 新規追加：共通ユーティリティ
     pub uuid_generator: Arc<UuidGenerator>,
+    
+    // 新規追加：ログコントローラー
+    pub log_controller: Arc<LogController>,
 }
 
 impl DIContainer {
@@ -125,6 +129,13 @@ impl DIContainer {
             log_repository.clone(),
         ));
 
+        // ログコントローラー初期化
+        let log_controller = Arc::new(LogController::new(
+            search_logs_usecase.clone(),
+            manage_log_usecase.clone(),
+            collect_log_usecase.clone(),
+        ));
+
         Ok(Self {
             create_user_usecase,
             update_user_usecase,
@@ -135,6 +146,7 @@ impl DIContainer {
             search_logs_usecase,
             manage_log_usecase,
             uuid_generator,
+            log_controller,
         })
     }
 }

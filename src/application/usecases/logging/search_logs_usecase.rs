@@ -5,7 +5,7 @@ use crate::domain::{
     repository::log_repository::{
         LogRepositoryInterface, LogSearchCriteria, LogSearchResult, PerformanceMetrics,
     },
-    value_object::request_id::RequestId,
+    value_object::{request_id::RequestId, log_id::LogId},
 };
 use crate::shared::error::application_error::ApplicationError;
 
@@ -290,6 +290,186 @@ impl SearchLogsUsecase {
             .count_by_criteria(&criteria)
             .await
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))
+    }
+
+    pub async fn find_by_id(&self, log_id: &LogId) -> ApplicationResult<Option<LogEntry>> {
+        self.log_repository
+            .find_by_id(log_id)
+            .await
+            .map_err(|e| ApplicationError::RepositoryError(e.to_string()))
+    }
+
+    pub async fn get_aggregated_data(
+        &self,
+        start_time: chrono::DateTime<chrono::Utc>,
+        end_time: chrono::DateTime<chrono::Utc>,
+    ) -> ApplicationResult<crate::presentation::dto::log_search_response::LogAggregationResponse> {
+        use crate::presentation::dto::log_search_response::*;
+        use std::collections::HashMap;
+
+        // エラーログを取得
+        let error_logs = self.find_errors_in_range(start_time, end_time).await?;
+        
+        // パフォーマンスメトリクスを取得
+        let metrics = self.get_performance_metrics(start_time, end_time).await?;
+
+        // エラー集計
+        let total_errors = error_logs.len();
+        let critical_errors = error_logs
+            .iter()
+            .filter(|log| log.level() == crate::domain::value_object::log_level::LogLevel::Critical)
+            .count();
+
+        let error_rate_24h = if metrics.total_requests > 0 {
+            error_logs.len() as f64 / metrics.total_requests as f64
+        } else {
+            0.0
+        };
+
+        let most_common_error = if !error_logs.is_empty() {
+            let mut error_counts: HashMap<String, usize> = HashMap::new();
+            for log in &error_logs {
+                *error_counts.entry(log.message().to_string()).or_insert(0) += 1;
+            }
+            error_counts
+                .into_iter()
+                .max_by_key(|(_, count)| *count)
+                .map(|(message, _)| message)
+        } else {
+            None
+        };
+
+        let error_summary = ErrorSummary {
+            total_errors,
+            critical_errors,
+            error_rate_24h,
+            most_common_error,
+        };
+
+        // パフォーマンス概要
+        let duration_hours = (end_time - start_time).num_minutes() as f64 / 60.0;
+        let throughput_requests_per_minute = if duration_hours > 0.0 {
+            metrics.total_requests as f64 / (duration_hours * 60.0)
+        } else {
+            0.0
+        };
+
+        let performance_overview = PerformanceOverview {
+            avg_response_time_24h: metrics.avg_response_time_ms,
+            p95_response_time_24h: metrics.p95_response_time_ms,
+            throughput_requests_per_minute,
+            active_requests: 0, // リアルタイムメトリクスが必要
+        };
+
+        // アクティビティタイムライン（時間別集計）
+        let mut activity_timeline = Vec::new();
+        let time_intervals = 24; // 24時間分
+        let interval_duration = (end_time - start_time) / time_intervals;
+
+        for i in 0..time_intervals {
+            let interval_start = start_time + interval_duration * i;
+            let interval_end = interval_start + interval_duration;
+            
+            // この時間間隔のログを検索
+            let criteria = LogSearchCriteria::new()
+                .with_time_range(interval_start, interval_end);
+            
+            let interval_result = self.search(criteria).await?;
+            let request_count = interval_result.logs.len();
+            let error_count = interval_result.logs
+                .iter()
+                .filter(|log| log.level().is_error())
+                .count();
+            
+            let avg_response_time_ms = if !interval_result.logs.is_empty() {
+                interval_result.logs
+                    .iter()
+                    .map(|log| log.http_context().response_time_ms())
+                    .sum::<u64>() as f64 / interval_result.logs.len() as f64
+            } else {
+                0.0
+            };
+
+            activity_timeline.push(ActivityTimelineEntry {
+                timestamp: interval_start,
+                request_count,
+                error_count,
+                avg_response_time_ms,
+            });
+        }
+
+        // トップエラー
+        let mut error_message_counts: HashMap<String, (usize, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>, Vec<String>)> = HashMap::new();
+        
+        for log in &error_logs {
+            let message = log.message().to_string();
+            let endpoint = log.http_context().endpoint().clone();
+            
+            let entry = error_message_counts.entry(message.clone()).or_insert((0, log.timestamp(), log.timestamp(), Vec::new()));
+            entry.0 += 1;
+            entry.1 = entry.1.min(log.timestamp());
+            entry.2 = entry.2.max(log.timestamp());
+            if !entry.3.contains(&endpoint) {
+                entry.3.push(endpoint);
+            }
+        }
+
+        let mut top_errors: Vec<TopErrorEntry> = error_message_counts
+            .into_iter()
+            .map(|(message, (count, first_seen, last_seen, affected_endpoints))| TopErrorEntry {
+                message,
+                count,
+                first_seen,
+                last_seen,
+                affected_endpoints,
+            })
+            .collect();
+        top_errors.sort_by(|a, b| b.count.cmp(&a.count));
+        top_errors.truncate(10);
+
+        // 最も遅いエンドポイント
+        let mut endpoint_metrics: HashMap<String, (Vec<u64>, usize)> = HashMap::new();
+        
+        // 全ログを取得して遅いエンドポイントを計算
+        let all_criteria = LogSearchCriteria::new()
+            .with_time_range(start_time, end_time)
+            .with_architecture_layer(crate::domain::value_object::architecture_layer::ArchitectureLayer::Presentation);
+        
+        let all_logs = self.search(all_criteria).await?;
+        
+        for log in &all_logs.logs {
+            let endpoint = log.http_context().endpoint().clone();
+            let response_time = log.http_context().response_time_ms();
+            
+            let entry = endpoint_metrics.entry(endpoint).or_insert((Vec::new(), 0));
+            entry.0.push(response_time);
+            entry.1 += 1;
+        }
+
+        let mut slowest_endpoints: Vec<SlowEndpointEntry> = endpoint_metrics
+            .into_iter()
+            .map(|(endpoint, (response_times, request_count))| {
+                let avg_response_time_ms = response_times.iter().sum::<u64>() as f64 / response_times.len() as f64;
+                let slowest_request_time_ms = *response_times.iter().max().unwrap_or(&0);
+                
+                SlowEndpointEntry {
+                    endpoint,
+                    avg_response_time_ms,
+                    request_count,
+                    slowest_request_time_ms,
+                }
+            })
+            .collect();
+        slowest_endpoints.sort_by(|a, b| b.avg_response_time_ms.partial_cmp(&a.avg_response_time_ms).unwrap_or(std::cmp::Ordering::Equal));
+        slowest_endpoints.truncate(10);
+
+        Ok(LogAggregationResponse {
+            error_summary,
+            performance_overview,
+            activity_timeline,
+            top_errors,
+            slowest_endpoints,
+        })
     }
 }
 

@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rusted-CA ログ分析ダッシュボード</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .chart-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .chart-section h2 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .search-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .search-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .results-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .log-level {
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .log-level.error {
+            background-color: #fee;
+            color: #c53030;
+        }
+
+        .log-level.warn {
+            background-color: #fffbeb;
+            color: #d69e2e;
+        }
+
+        .log-level.info {
+            background-color: #ebf8ff;
+            color: #3182ce;
+        }
+
+        .log-level.debug {
+            background-color: #f0fff4;
+            color: #38a169;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .error-message {
+            background-color: #fed7d7;
+            color: #c53030;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+
+        .success-message {
+            background-color: #c6f6d5;
+            color: #276749;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .pagination button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .timeline-chart {
+            height: 300px;
+            margin: 1rem 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+
+        .top-errors {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+
+        .error-item {
+            padding: 1rem;
+            border-left: 4px solid #e53e3e;
+            background: #fef5e7;
+            margin-bottom: 1rem;
+            border-radius: 0 5px 5px 0;
+        }
+
+        .error-count {
+            font-weight: bold;
+            color: #e53e3e;
+            font-size: 1.2rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .search-form {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🚀 Rusted-CA ログ分析ダッシュボード</h1>
+        <p>MongoDB 構造化ログシステム - リアルタイム監視と分析</p>
+    </header>
+
+    <div class="container">
+        <!-- 統計概要 -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalRequests">-</div>
+                <div class="stat-label">総リクエスト数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="errorRate">-%</div>
+                <div class="stat-label">エラー率</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="avgResponseTime">-ms</div>
+                <div class="stat-label">平均レスポンス時間</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="p95ResponseTime">-ms</div>
+                <div class="stat-label">P95 レスポンス時間</div>
+            </div>
+        </div>
+
+        <!-- アクティビティタイムライン -->
+        <div class="chart-section">
+            <h2>📈 アクティビティタイムライン (24時間)</h2>
+            <div class="timeline-chart" id="timelineChart">
+                Chart.js または Canvas でのリアルタイムグラフが表示されます
+            </div>
+        </div>
+
+        <!-- ログ検索 -->
+        <div class="search-section">
+            <h2>🔍 ログ検索</h2>
+            <form class="search-form" id="searchForm">
+                <div class="form-group">
+                    <label for="logLevel">ログレベル</label>
+                    <select id="logLevel" name="level">
+                        <option value="">全て</option>
+                        <option value="ERROR">ERROR</option>
+                        <option value="WARN">WARN</option>
+                        <option value="INFO">INFO</option>
+                        <option value="DEBUG">DEBUG</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="architectureLayer">アーキテクチャレイヤー</label>
+                    <select id="architectureLayer" name="architecture_layer">
+                        <option value="">全て</option>
+                        <option value="PRESENTATION">Presentation</option>
+                        <option value="APPLICATION">Application</option>
+                        <option value="DOMAIN">Domain</option>
+                        <option value="INFRASTRUCTURE">Infrastructure</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="startTime">開始時間</label>
+                    <input type="datetime-local" id="startTime" name="start_time">
+                </div>
+                
+                <div class="form-group">
+                    <label for="endTime">終了時間</label>
+                    <input type="datetime-local" id="endTime" name="end_time">
+                </div>
+                
+                <div class="form-group">
+                    <label for="messageSearch">メッセージ検索</label>
+                    <input type="text" id="messageSearch" name="message_contains" placeholder="キーワードを入力...">
+                </div>
+                
+                <div class="form-group">
+                    <label for="requestId">リクエストID</label>
+                    <input type="text" id="requestId" name="request_id" placeholder="リクエストIDを入力...">
+                </div>
+            </form>
+            
+            <div style="margin-top: 1rem;">
+                <button type="button" class="btn" onclick="searchLogs()">🔍 検索</button>
+                <button type="button" class="btn btn-secondary" onclick="clearSearch()">🗑️ クリア</button>
+                <button type="button" class="btn btn-secondary" onclick="exportResults()">📥 エクスポート</button>
+            </div>
+
+            <!-- 検索結果 -->
+            <div id="searchResults">
+                <div id="loading" class="loading" style="display: none;">
+                    検索中... ⏳
+                </div>
+                
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+                
+                <table class="results-table" id="resultsTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>時間</th>
+                            <th>レベル</th>
+                            <th>メッセージ</th>
+                            <th>レイヤー</th>
+                            <th>レスポンス時間</th>
+                            <th>ステータス</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+                
+                <div class="pagination" id="pagination" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- トップエラー -->
+        <div class="top-errors">
+            <h2>🚨 頻発エラー (24時間)</h2>
+            <div id="topErrorsList">
+                <div class="loading">エラーデータを読み込み中... ⏳</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // グローバル変数
+        let currentPage = 0;
+        let pageSize = 50;
+        let lastSearchParams = {};
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+            setDefaultTimeRange();
+        });
+
+        // デフォルトの時間範囲を設定（過去24時間）
+        function setDefaultTimeRange() {
+            const now = new Date();
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            
+            document.getElementById('endTime').value = now.toISOString().slice(0, 16);
+            document.getElementById('startTime').value = yesterday.toISOString().slice(0, 16);
+        }
+
+        // ダッシュボードデータの読み込み
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('/api/logs/aggregation');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatsDisplay(data.data);
+                    updateTopErrors(data.data.top_errors);
+                    updateActivityTimeline(data.data.activity_timeline);
+                } else {
+                    showError('ダッシュボードデータの読み込みに失敗しました: ' + data.error);
+                }
+            } catch (error) {
+                showError('ダッシュボードデータの読み込み中にエラーが発生しました: ' + error.message);
+            }
+        }
+
+        // 統計表示の更新
+        function updateStatsDisplay(data) {
+            document.getElementById('totalRequests').textContent = data.performance_overview.throughput_requests_per_minute.toFixed(0);
+            document.getElementById('errorRate').textContent = (data.error_summary.error_rate_24h * 100).toFixed(1) + '%';
+            document.getElementById('avgResponseTime').textContent = data.performance_overview.avg_response_time_24h.toFixed(0) + 'ms';
+            document.getElementById('p95ResponseTime').textContent = data.performance_overview.p95_response_time_24h + 'ms';
+        }
+
+        // トップエラーの更新
+        function updateTopErrors(topErrors) {
+            const container = document.getElementById('topErrorsList');
+            
+            if (topErrors.length === 0) {
+                container.innerHTML = '<div class="success-message">✅ エラーは発生していません</div>';
+                return;
+            }
+
+            const html = topErrors.map(error => `
+                <div class="error-item">
+                    <div class="error-count">${error.count}回</div>
+                    <div style="font-weight: 500; margin: 0.5rem 0;">${escapeHtml(error.message)}</div>
+                    <div style="color: #666; font-size: 0.9rem;">
+                        初回: ${new Date(error.first_seen).toLocaleString('ja-JP')} | 
+                        最終: ${new Date(error.last_seen).toLocaleString('ja-JP')}
+                    </div>
+                    <div style="color: #666; font-size: 0.9rem;">
+                        影響エンドポイント: ${error.affected_endpoints.join(', ')}
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        // アクティビティタイムラインの更新
+        function updateActivityTimeline(timeline) {
+            const container = document.getElementById('timelineChart');
+            // 実際の実装では Chart.js や D3.js を使用してグラフを描画
+            container.innerHTML = `
+                <div style="text-align: center;">
+                    <p>📊 アクティビティデータ: ${timeline.length}件の時間間隔</p>
+                    <p style="margin-top: 0.5rem; color: #666;">
+                        Chart.js を使用したリアルタイムグラフがここに表示されます
+                    </p>
+                </div>
+            `;
+        }
+
+        // ログ検索
+        async function searchLogs() {
+            const form = document.getElementById('searchForm');
+            const formData = new FormData(form);
+            
+            // URLSearchParams を構築
+            const params = new URLSearchParams();
+            for (const [key, value] of formData.entries()) {
+                if (value) {
+                    params.append(key, value);
+                }
+            }
+            
+            // ページング設定
+            params.append('limit', pageSize.toString());
+            params.append('offset', (currentPage * pageSize).toString());
+            
+            lastSearchParams = Object.fromEntries(params.entries());
+            
+            showLoading(true);
+            hideError();
+            
+            try {
+                const response = await fetch(`/api/logs/search?${params.toString()}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displaySearchResults(data.data);
+                } else {
+                    showError('検索に失敗しました: ' + data.error);
+                }
+            } catch (error) {
+                showError('検索中にエラーが発生しました: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 検索結果の表示
+        function displaySearchResults(data) {
+            const table = document.getElementById('resultsTable');
+            const tbody = document.getElementById('resultsBody');
+            
+            if (data.logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666;">検索条件に一致するログが見つかりませんでした</td></tr>';
+                table.style.display = 'table';
+                return;
+            }
+
+            const html = data.logs.map(log => `
+                <tr>
+                    <td>${new Date(log.timestamp).toLocaleString('ja-JP')}</td>
+                    <td><span class="log-level ${log.level.toLowerCase()}">${log.level}</span></td>
+                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(log.message)}">${escapeHtml(log.message)}</td>
+                    <td>${log.architecture_layer}</td>
+                    <td>${log.http_context.response_time_ms}ms</td>
+                    <td>${log.http_context.status_code}</td>
+                </tr>
+            `).join('');
+            
+            tbody.innerHTML = html;
+            table.style.display = 'table';
+            
+            // ページネーション表示
+            displayPagination(data.total_count);
+        }
+
+        // ページネーション表示
+        function displayPagination(totalCount) {
+            const pagination = document.getElementById('pagination');
+            const totalPages = Math.ceil(totalCount / pageSize);
+            
+            if (totalPages <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+            
+            let html = '';
+            
+            // 前のページボタン
+            html += `<button onclick="changePage(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>‹ 前</button>`;
+            
+            // ページ番号ボタン
+            const start = Math.max(0, currentPage - 2);
+            const end = Math.min(totalPages, start + 5);
+            
+            for (let i = start; i < end; i++) {
+                html += `<button onclick="changePage(${i})" ${i === currentPage ? 'class="active"' : ''}>${i + 1}</button>`;
+            }
+            
+            // 次のページボタン
+            html += `<button onclick="changePage(${currentPage + 1})" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>次 ›</button>`;
+            
+            pagination.innerHTML = html;
+            pagination.style.display = 'flex';
+        }
+
+        // ページ変更
+        function changePage(page) {
+            currentPage = page;
+            searchLogs();
+        }
+
+        // 検索フォームクリア
+        function clearSearch() {
+            document.getElementById('searchForm').reset();
+            setDefaultTimeRange();
+            hideResults();
+            currentPage = 0;
+        }
+
+        // 結果エクスポート
+        function exportResults() {
+            // CSV形式でエクスポート機能を実装
+            alert('エクスポート機能は実装予定です');
+        }
+
+        // UI ヘルパー関数
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function hideResults() {
+            document.getElementById('resultsTable').style.display = 'none';
+            document.getElementById('pagination').style.display = 'none';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 定期的にダッシュボードデータを更新
+        setInterval(loadDashboardData, 30000); // 30秒毎
+    </script>
+</body>
+</html>

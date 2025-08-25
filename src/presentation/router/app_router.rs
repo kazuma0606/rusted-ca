@@ -8,9 +8,11 @@ use crate::application::usecases::get_user_usecase::GetUserQueryUsecaseInterface
 use crate::application::usecases::update_user_usecase::UpdateUserUsecaseInterface;
 use crate::infrastructure::config::app_config::DiscordConfig;
 use crate::presentation::controller::user_controller::UserController;
+use crate::presentation::controller::log_controller::LogController;
 use crate::presentation::router::auth_router::create_auth_routes;
 use crate::presentation::router::fortune_router::create_fortune_routes;
 use crate::presentation::router::grpc_router::create_grpc_routes;
+use crate::presentation::router::log_router::log_router;
 use crate::presentation::router::user_router::create_user_routes;
 use crate::shared::middleware::cors_middleware::build_cors_layer;
 use crate::shared::middleware::discord_middleware::{
@@ -18,6 +20,7 @@ use crate::shared::middleware::discord_middleware::{
 };
 use crate::shared::middleware::security_headers_middleware::security_headers_middleware;
 use crate::shared::middleware::watch_middleware;
+use crate::shared::middleware::logging_middleware::LoggingLayer;
 use axum::{Json, Router, middleware, routing::get};
 use std::sync::Arc;
 
@@ -30,6 +33,8 @@ use std::sync::Arc;
 /// 4. ログ・メトリクス収集ミドルウェア
 pub fn create_app_router<T, U, V, W>(
     user_controller: Arc<UserController<T, U, V, W>>,
+    log_controller: Arc<LogController>,
+    logging_layer: LoggingLayer,
     discord_config: Arc<DiscordConfig>,
 ) -> Router
 where
@@ -57,8 +62,10 @@ where
         .nest("/api", create_auth_routes())
         .nest("/api", create_fortune_routes())
         .nest("/api", create_grpc_routes())
+        .nest("/api/logs", log_router(log_controller))
         .layer(build_cors_layer())
         .layer(middleware::from_fn(watch_middleware::watch_middleware))
+        .layer(logging_layer) // ログ収集ミドルウェア
         .layer(middleware::from_fn_with_state(
             discord_config,
             discord_notification_middleware,

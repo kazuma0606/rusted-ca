@@ -69,6 +69,16 @@ impl LogSearchCriteria {
         self
     }
 
+    pub fn with_start_time(mut self, start: DateTime<Utc>) -> Self {
+        self.start_time = Some(start);
+        self
+    }
+
+    pub fn with_end_time(mut self, end: DateTime<Utc>) -> Self {
+        self.end_time = Some(end);
+        self
+    }
+
     pub fn with_message_contains(mut self, text: String) -> Self {
         self.message_contains = Some(text);
         self

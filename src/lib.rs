@@ -272,6 +272,7 @@ pub mod presentation {
         pub mod auth_controller;
         pub mod fortune_controller;
         pub mod health_controller;
+        pub mod log_controller;
         pub mod metrics_controller;
         pub mod user_controller;
 
@@ -285,6 +286,9 @@ pub mod presentation {
         pub mod api_response;
         pub mod create_user_request;
         pub mod delete_user_request;
+        pub mod fortune_response;
+        pub mod log_search_request;
+        pub mod log_search_response;
         pub mod login_request;
         pub mod login_response;
         pub mod metrics_response;
@@ -309,6 +313,7 @@ pub mod presentation {
         pub mod auth_router;
         pub mod fortune_router;
         pub mod grpc_router;
+        pub mod log_router;
         pub mod metrics_router;
         pub mod user_router;
 
