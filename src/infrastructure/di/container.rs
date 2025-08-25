@@ -8,7 +8,7 @@ use crate::application::usecases::create_user_sqlx_usecase::CreateUserSqlxUsecas
 use crate::application::usecases::delete_user_sqlx_usecase::DeleteUserSqlxUsecase;
 use crate::application::usecases::update_user_sqlx_usecase::UpdateUserSqlxUsecase;
 use crate::application::usecases::logging::{
-    collect_log_usecase::{CollectLogUsecase, IdGeneratorInterface},
+    collect_log_usecase::CollectLogUsecase,
     search_logs_usecase::SearchLogsUsecase,
     manage_log_usecase::ManageLogUsecase,
 };
@@ -108,7 +108,7 @@ impl DIContainer {
         let metrics_collector = Arc::new(MetricsCollector::new()) as Arc<dyn MetricsCollectorInterface>;
 
         // IDジェネレーター（ログ用）初期化
-        let log_id_generator = Arc::new(crate::application::usecases::logging::collect_log_usecase::UuidGenerator::new()) as Arc<dyn IdGeneratorInterface>;
+        let log_id_generator = Arc::new(crate::application::usecases::logging::collect_log_usecase::UuidGenerator::new()) as Arc<dyn crate::application::usecases::logging::collect_log_usecase::IdGeneratorInterface>;
 
         // ログ関連ユースケース初期化
         let collect_log_usecase = Arc::new(CollectLogUsecase::new(

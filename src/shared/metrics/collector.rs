@@ -4,11 +4,13 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use async_trait::async_trait;
 use crate::domain::entity::log_entry::LogEntry;
-use crate::shared::error::application_error::ApplicationResult;
+use crate::shared::error::application_error::ApplicationError;
 
+#[async_trait]
 pub trait MetricsCollectorInterface: Send + Sync {
-    fn record_log_event(&self, log_entry: &LogEntry) -> ApplicationResult<()>;
+    async fn record_log_event(&self, log_entry: &LogEntry) -> Result<(), ApplicationError>;
     fn increment_log_count(&self);
     fn increment_error_count(&self);
     fn get_log_count(&self) -> u64;
@@ -45,8 +47,9 @@ impl MetricsCollector {
     }
 }
 
+#[async_trait]
 impl MetricsCollectorInterface for MetricsCollector {
-    fn record_log_event(&self, log_entry: &LogEntry) -> ApplicationResult<()> {
+    async fn record_log_event(&self, log_entry: &LogEntry) -> Result<(), ApplicationError> {
         self.increment_log_count();
         
         if log_entry.level().is_error() {

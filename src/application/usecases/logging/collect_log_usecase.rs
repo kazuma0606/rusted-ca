@@ -1,10 +1,10 @@
+use async_trait::async_trait;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::application::dto::collect_log_request::CollectLogRequest;
 use crate::domain::{
-    entity::log_entry::LogEntry,
-    repository::log_repository::LogRepositoryInterface,
+    entity::log_entry::LogEntry, repository::log_repository::LogRepositoryInterface,
     value_object::log_id::LogId,
 };
 use crate::shared::error::application_error::ApplicationError;
@@ -78,7 +78,7 @@ impl CollectLogUsecase {
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))?;
 
         // Record metrics
-        if let Err(e) = self.metrics_collector.record_log_event(&log_entry) {
+        if let Err(e) = self.metrics_collector.record_log_event(&log_entry).await {
             // Log metrics collection failure but don't fail the entire operation
             eprintln!("Failed to record log metrics: {:?}", e);
         }
@@ -112,7 +112,7 @@ impl CollectLogUsecase {
     fn contains_sensitive_info(&self, message: &str) -> bool {
         let sensitive_patterns = ["password", "token", "secret", "key", "api_key"];
         let message_lower = message.to_lowercase();
-        
+
         sensitive_patterns
             .iter()
             .any(|pattern| message_lower.contains(pattern))
@@ -127,7 +127,7 @@ impl CollectLogUsecase {
             entry.request_id(),
             entry.user_context()
         );
-        
+
         // In a real implementation, this would:
         // 1. Send Discord notification
         // 2. Create incident ticket
@@ -139,11 +139,11 @@ impl CollectLogUsecase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::repository::log_repository::LogRepositoryInterface;
     use crate::domain::value_object::{
         architecture_layer::ArchitectureLayer, http_context::HttpContext, log_level::LogLevel,
         log_metadata::LogMetadata, operation::Operation, request_id::RequestId,
     };
-    use crate::domain::repository::log_repository::LogRepositoryInterface;
     use async_trait::async_trait;
     use chrono::Utc;
     use std::sync::Mutex;
@@ -163,52 +163,100 @@ mod tests {
 
     #[async_trait]
     impl LogRepositoryInterface for MockLogRepository {
-        async fn store(&self, entry: &LogEntry) -> Result<(), crate::shared::error::domain_error::DomainError> {
+        async fn store(
+            &self,
+            entry: &LogEntry,
+        ) -> Result<(), crate::shared::error::domain_error::DomainError> {
             self.stored_logs.lock().unwrap().push(entry.clone());
             Ok(())
         }
 
-        async fn find_by_id(&self, _id: &LogId) -> Result<Option<LogEntry>, crate::shared::error::domain_error::DomainError> {
+        async fn find_by_id(
+            &self,
+            _id: &LogId,
+        ) -> Result<Option<LogEntry>, crate::shared::error::domain_error::DomainError> {
             todo!()
         }
 
-        async fn find_by_criteria(&self, _criteria: &crate::domain::repository::log_repository::LogSearchCriteria) -> Result<crate::domain::repository::log_repository::LogSearchResult, crate::shared::error::domain_error::DomainError> {
+        async fn find_by_criteria(
+            &self,
+            _criteria: &crate::domain::repository::log_repository::LogSearchCriteria,
+        ) -> Result<
+            crate::domain::repository::log_repository::LogSearchResult,
+            crate::shared::error::domain_error::DomainError,
+        > {
             todo!()
         }
 
-        async fn update_analysis_status(&self, _id: &LogId, _status: crate::domain::value_object::analysis_status::AnalysisStatus) -> Result<(), crate::shared::error::domain_error::DomainError> {
+        async fn update_analysis_status(
+            &self,
+            _id: &LogId,
+            _status: crate::domain::value_object::analysis_status::AnalysisStatus,
+        ) -> Result<(), crate::shared::error::domain_error::DomainError> {
             todo!()
         }
 
-        async fn add_tags(&self, _id: &LogId, _tags: Vec<String>) -> Result<(), crate::shared::error::domain_error::DomainError> {
+        async fn add_tags(
+            &self,
+            _id: &LogId,
+            _tags: Vec<String>,
+        ) -> Result<(), crate::shared::error::domain_error::DomainError> {
             todo!()
         }
 
-        async fn remove_tag(&self, _id: &LogId, _tag: &str) -> Result<(), crate::shared::error::domain_error::DomainError> {
+        async fn remove_tag(
+            &self,
+            _id: &LogId,
+            _tag: &str,
+        ) -> Result<(), crate::shared::error::domain_error::DomainError> {
             todo!()
         }
 
-        async fn add_related_log(&self, _id: &LogId, _related_id: LogId) -> Result<(), crate::shared::error::domain_error::DomainError> {
+        async fn add_related_log(
+            &self,
+            _id: &LogId,
+            _related_id: LogId,
+        ) -> Result<(), crate::shared::error::domain_error::DomainError> {
             todo!()
         }
 
-        async fn count_by_criteria(&self, _criteria: &crate::domain::repository::log_repository::LogSearchCriteria) -> Result<usize, crate::shared::error::domain_error::DomainError> {
+        async fn count_by_criteria(
+            &self,
+            _criteria: &crate::domain::repository::log_repository::LogSearchCriteria,
+        ) -> Result<usize, crate::shared::error::domain_error::DomainError> {
             todo!()
         }
 
-        async fn delete_older_than(&self, _cutoff_time: chrono::DateTime<chrono::Utc>) -> Result<usize, crate::shared::error::domain_error::DomainError> {
+        async fn delete_older_than(
+            &self,
+            _cutoff_time: chrono::DateTime<chrono::Utc>,
+        ) -> Result<usize, crate::shared::error::domain_error::DomainError> {
             todo!()
         }
 
-        async fn find_by_request_id(&self, _request_id: &RequestId) -> Result<Vec<LogEntry>, crate::shared::error::domain_error::DomainError> {
+        async fn find_by_request_id(
+            &self,
+            _request_id: &RequestId,
+        ) -> Result<Vec<LogEntry>, crate::shared::error::domain_error::DomainError> {
             todo!()
         }
 
-        async fn find_errors_in_range(&self, _start: chrono::DateTime<chrono::Utc>, _end: chrono::DateTime<chrono::Utc>) -> Result<Vec<LogEntry>, crate::shared::error::domain_error::DomainError> {
+        async fn find_errors_in_range(
+            &self,
+            _start: chrono::DateTime<chrono::Utc>,
+            _end: chrono::DateTime<chrono::Utc>,
+        ) -> Result<Vec<LogEntry>, crate::shared::error::domain_error::DomainError> {
             todo!()
         }
 
-        async fn get_performance_metrics(&self, _start: chrono::DateTime<chrono::Utc>, _end: chrono::DateTime<chrono::Utc>) -> Result<crate::domain::repository::log_repository::PerformanceMetrics, crate::shared::error::domain_error::DomainError> {
+        async fn get_performance_metrics(
+            &self,
+            _start: chrono::DateTime<chrono::Utc>,
+            _end: chrono::DateTime<chrono::Utc>,
+        ) -> Result<
+            crate::domain::repository::log_repository::PerformanceMetrics,
+            crate::shared::error::domain_error::DomainError,
+        > {
             todo!()
         }
     }
@@ -225,6 +273,15 @@ mod tests {
     impl MetricsCollectorInterface for MockMetricsCollector {
         async fn record_log_event(&self, _entry: &LogEntry) -> Result<(), ApplicationError> {
             Ok(())
+        }
+
+        fn increment_log_count(&self) {}
+        fn increment_error_count(&self) {}
+        fn get_log_count(&self) -> u64 {
+            0
+        }
+        fn get_error_count(&self) -> u64 {
+            0
         }
     }
 
