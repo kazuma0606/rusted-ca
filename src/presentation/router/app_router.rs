@@ -7,8 +7,9 @@ use crate::application::usecases::delete_user_usecase::DeleteUserUsecaseInterfac
 use crate::application::usecases::get_user_usecase::GetUserQueryUsecaseInterface;
 use crate::application::usecases::update_user_usecase::UpdateUserUsecaseInterface;
 use crate::infrastructure::config::app_config::DiscordConfig;
-use crate::presentation::controller::user_controller::UserController;
+
 use crate::presentation::controller::log_controller::LogController;
+use crate::presentation::controller::user_controller::UserController;
 use crate::presentation::router::auth_router::create_auth_routes;
 use crate::presentation::router::fortune_router::create_fortune_routes;
 use crate::presentation::router::grpc_router::create_grpc_routes;
@@ -18,9 +19,9 @@ use crate::shared::middleware::cors_middleware::build_cors_layer;
 use crate::shared::middleware::discord_middleware::{
     discord_notification_middleware, try_notify_startup,
 };
+use crate::shared::middleware::logging_middleware::LoggingLayer;
 use crate::shared::middleware::security_headers_middleware::security_headers_middleware;
 use crate::shared::middleware::watch_middleware;
-use crate::shared::middleware::logging_middleware::LoggingLayer;
 use axum::{Json, Router, middleware, routing::get};
 use std::sync::Arc;
 

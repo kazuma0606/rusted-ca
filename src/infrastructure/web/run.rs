@@ -27,7 +27,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let di = Arc::new(DIContainer::new(tidb_pool, redis_pool).await?);
 
     // ルーター
-    let app = build_api_router(di.clone());
+    let app = build_api_router(di.clone()).with_state(di);
 
     // サーバー起動
     println!("Listening on http://0.0.0.0:3000");

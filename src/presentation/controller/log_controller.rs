@@ -1,34 +1,27 @@
 use std::{sync::Arc, time::Instant};
 
 use axum::{
+    Router,
     extract::{Path, Query, State},
     http::StatusCode,
     response::{Html, Json},
     routing::{get, post, put},
-    Router,
 };
 use chrono::Utc;
 
 use crate::{
     application::usecases::logging::{
-        collect_log_usecase::CollectLogUsecase,
-        manage_log_usecase::ManageLogUsecase,
+        collect_log_usecase::CollectLogUsecase, manage_log_usecase::ManageLogUsecase,
         search_logs_usecase::SearchLogsUsecase,
     },
     domain::{
         repository::log_repository::LogSearchCriteria,
         value_object::{
-            analysis_status::AnalysisStatus,
-            architecture_layer::ArchitectureLayer,
-            log_id::LogId,
+            analysis_status::AnalysisStatus, architecture_layer::ArchitectureLayer, log_id::LogId,
             log_level::LogLevel,
         },
     },
-    presentation::dto::{
-        log_search_request::*,
-        log_search_response::*,
-    },
-    shared::error::presentation_error::PresentationError,
+    presentation::dto::{log_search_request::*, log_search_response::*},
 };
 
 pub struct LogController {
@@ -61,21 +54,29 @@ impl LogController {
         let criteria = match Self::convert_to_search_criteria(&request) {
             Ok(criteria) => criteria,
             Err(e) => {
-                return Ok(Json(ApiResponse::error(format!("Invalid search criteria: {}", e))));
+                return Ok(Json(ApiResponse::error(format!(
+                    "Invalid search criteria: {}",
+                    e
+                ))));
             }
         };
 
         // ログ検索実行
-        match controller.search_logs_usecase.search(&criteria).await {
+        match controller
+            .search_logs_usecase
+            .search(criteria.clone())
+            .await
+        {
             Ok(search_result) => {
                 let query_time_ms = start_time.elapsed().as_millis() as u64;
-                
+
                 let response = LogSearchResponse {
-                    logs: search_result.logs
+                    logs: search_result
+                        .logs
                         .into_iter()
                         .map(|entry| Self::convert_to_log_entry_response(entry))
                         .collect(),
-                    total_count: search_result.total_count,
+                    total_count: search_result.total_count.unwrap_or(0),
                     has_more: search_result.has_more,
                     search_metadata: SearchMetadata {
                         query_time_ms,
@@ -106,7 +107,10 @@ impl LogController {
                 Ok(Json(ApiResponse::success(response)))
             }
             Ok(None) => Ok(Json(ApiResponse::error("Log not found".to_string()))),
-            Err(e) => Ok(Json(ApiResponse::error(format!("Failed to retrieve log: {}", e)))),
+            Err(e) => Ok(Json(ApiResponse::error(format!(
+                "Failed to retrieve log: {}",
+                e
+            )))),
         }
     }
 
@@ -115,12 +119,22 @@ impl LogController {
         State(controller): State<Arc<LogController>>,
         Path(request_id): Path<String>,
     ) -> Result<Json<ApiResponse<Vec<LogEntryResponse>>>, StatusCode> {
-        let request_id = match crate::domain::value_object::request_id::RequestId::from_string(&request_id) {
-            Ok(id) => id,
-            Err(e) => return Ok(Json(ApiResponse::error(format!("Invalid request ID: {}", e)))),
-        };
+        let request_id =
+            match crate::domain::value_object::request_id::RequestId::from_string(&request_id) {
+                Ok(id) => id,
+                Err(e) => {
+                    return Ok(Json(ApiResponse::error(format!(
+                        "Invalid request ID: {}",
+                        e
+                    ))));
+                }
+            };
 
-        match controller.search_logs_usecase.find_by_request_id(&request_id).await {
+        match controller
+            .search_logs_usecase
+            .find_by_request_id(&request_id)
+            .await
+        {
             Ok(logs) => {
                 let response: Vec<LogEntryResponse> = logs
                     .into_iter()
@@ -128,7 +142,10 @@ impl LogController {
                     .collect();
                 Ok(Json(ApiResponse::success(response)))
             }
-            Err(e) => Ok(Json(ApiResponse::error(format!("Failed to retrieve logs: {}", e)))),
+            Err(e) => Ok(Json(ApiResponse::error(format!(
+                "Failed to retrieve logs: {}",
+                e
+            )))),
         }
     }
 
@@ -151,7 +168,8 @@ impl LogController {
                     p95_response_time_ms: metrics.p95_response_time_ms,
                     error_rate: metrics.error_rate,
                     requests_by_status_code: metrics.requests_by_status_code,
-                    requests_by_layer: metrics.requests_by_layer
+                    requests_by_layer: metrics
+                        .requests_by_layer
                         .into_iter()
                         .map(|(k, v)| (k.to_string(), v))
                         .collect(),
@@ -162,7 +180,10 @@ impl LogController {
                 };
                 Ok(Json(ApiResponse::success(response)))
             }
-            Err(e) => Ok(Json(ApiResponse::error(format!("Failed to get metrics: {}", e)))),
+            Err(e) => Ok(Json(ApiResponse::error(format!(
+                "Failed to get metrics: {}",
+                e
+            )))),
         }
     }
 
@@ -176,13 +197,20 @@ impl LogController {
 
         let result = if dry_run {
             // ドライラン：削除対象数のみ取得
-            match controller.manage_log_usecase.count_logs_older_than(request.cutoff_time).await {
+            match controller
+                .manage_log_usecase
+                .count_logs_older_than(request.cutoff_time)
+                .await
+            {
                 Ok(count) => Ok(count),
                 Err(e) => Err(e),
             }
         } else {
             // 実際の削除実行
-            controller.manage_log_usecase.delete_logs_older_than(request.cutoff_time).await
+            controller
+                .manage_log_usecase
+                .delete_logs_older_than(request.cutoff_time)
+                .await
         };
 
         match result {
@@ -210,9 +238,18 @@ impl LogController {
             Err(e) => return Ok(Json(ApiResponse::error(format!("Invalid log ID: {}", e)))),
         };
 
-        match controller.manage_log_usecase.add_tags(&log_id, request.tags).await {
-            Ok(_) => Ok(Json(ApiResponse::success("Tags added successfully".to_string()))),
-            Err(e) => Ok(Json(ApiResponse::error(format!("Failed to add tags: {}", e)))),
+        match controller
+            .manage_log_usecase
+            .add_tags(&log_id, request.tags)
+            .await
+        {
+            Ok(_) => Ok(Json(ApiResponse::success(
+                "Tags added successfully".to_string(),
+            ))),
+            Err(e) => Ok(Json(ApiResponse::error(format!(
+                "Failed to add tags: {}",
+                e
+            )))),
         }
     }
 
@@ -225,9 +262,18 @@ impl LogController {
             Err(e) => return Ok(Json(ApiResponse::error(format!("Invalid log ID: {}", e)))),
         };
 
-        match controller.manage_log_usecase.remove_tag(&log_id, &request.tag).await {
-            Ok(_) => Ok(Json(ApiResponse::success("Tag removed successfully".to_string()))),
-            Err(e) => Ok(Json(ApiResponse::error(format!("Failed to remove tag: {}", e)))),
+        match controller
+            .manage_log_usecase
+            .remove_tag(&log_id, &request.tag)
+            .await
+        {
+            Ok(_) => Ok(Json(ApiResponse::success(
+                "Tag removed successfully".to_string(),
+            ))),
+            Err(e) => Ok(Json(ApiResponse::error(format!(
+                "Failed to remove tag: {}",
+                e
+            )))),
         }
     }
 
@@ -246,9 +292,18 @@ impl LogController {
             Err(e) => return Ok(Json(ApiResponse::error(format!("Invalid status: {}", e)))),
         };
 
-        match controller.manage_log_usecase.update_analysis_status(&log_id, status).await {
-            Ok(_) => Ok(Json(ApiResponse::success("Status updated successfully".to_string()))),
-            Err(e) => Ok(Json(ApiResponse::error(format!("Failed to update status: {}", e)))),
+        match controller
+            .manage_log_usecase
+            .update_analysis_status(&log_id, status)
+            .await
+        {
+            Ok(_) => Ok(Json(ApiResponse::success(
+                "Status updated successfully".to_string(),
+            ))),
+            Err(e) => Ok(Json(ApiResponse::error(format!(
+                "Failed to update status: {}",
+                e
+            )))),
         }
     }
 
@@ -266,9 +321,16 @@ impl LogController {
         let end_time = Utc::now();
         let start_time = end_time - chrono::Duration::hours(24);
 
-        match controller.search_logs_usecase.get_aggregated_data(start_time, end_time).await {
+        match controller
+            .search_logs_usecase
+            .get_aggregated_data(start_time, end_time)
+            .await
+        {
             Ok(aggregation) => Ok(Json(ApiResponse::success(aggregation))),
-            Err(e) => Ok(Json(ApiResponse::error(format!("Failed to get aggregation: {}", e)))),
+            Err(e) => Ok(Json(ApiResponse::error(format!(
+                "Failed to get aggregation: {}",
+                e
+            )))),
         }
     }
 
@@ -287,7 +349,10 @@ impl LogController {
         };
 
         let request_id = if let Some(ref req_id) = request.request_id {
-            Some(crate::domain::value_object::request_id::RequestId::from_string(req_id).map_err(|e| e.to_string())?)
+            Some(
+                crate::domain::value_object::request_id::RequestId::from_string(req_id)
+                    .map_err(|e| e.to_string())?,
+            )
         } else {
             None
         };
@@ -313,41 +378,47 @@ impl LogController {
         })
     }
 
-    fn convert_to_log_entry_response(entry: crate::domain::entity::log_entry::LogEntry) -> LogEntryResponse {
+    fn convert_to_log_entry_response(
+        entry: crate::domain::entity::log_entry::LogEntry,
+    ) -> LogEntryResponse {
         LogEntryResponse {
-            log_id: entry.log_id().to_string(),
+            log_id: entry.id().to_string(),
             timestamp: entry.timestamp(),
             level: entry.level().to_string(),
             message: entry.message().to_string(),
             request_id: entry.request_id().to_string(),
-            user_context: entry.user_context().map(|ctx| UserContextResponse {
-                user_id: ctx.user_id().clone(),
-                username: ctx.username().cloned(),
-                role: ctx.role().cloned(),
-                session_id: ctx.session_id().cloned(),
+            user_context: entry.user_context().clone().map(|ctx| UserContextResponse {
+                user_id: ctx.user_id().to_string(),
+                username: ctx.username().map(|s| s.to_string()),
+                role: ctx.role().map(|s| s.to_string()),
+                session_id: None, // UserContext doesn't have session_id
             }),
             http_context: HttpContextResponse {
-                method: entry.http_context().method().clone(),
-                endpoint: entry.http_context().endpoint().clone(),
+                method: entry.http_context().method().to_string(),
+                endpoint: entry.http_context().path().to_string(),
                 status_code: entry.http_context().status_code(),
                 response_time_ms: entry.http_context().response_time_ms(),
-                user_agent: entry.http_context().user_agent().cloned(),
-                ip_address: entry.http_context().ip_address().cloned(),
+                user_agent: entry.http_context().user_agent().map(|s| s.to_string()),
+                ip_address: entry.http_context().ip_address().map(|s| s.to_string()),
             },
             architecture_layer: entry.architecture_layer().to_string(),
             operation: entry.operation().to_string(),
-            metadata: entry.metadata().to_json_value(),
-            tags: entry.tags().clone(),
+            metadata: entry.metadata().to_json(),
+            tags: entry.tags().to_vec(),
             analysis_status: entry.analysis_status().to_string(),
-            related_log_ids: entry.related_log_ids().iter().map(|id| id.to_string()).collect(),
-            created_at: entry.created_at(),
-            updated_at: entry.updated_at(),
+            related_log_ids: entry
+                .related_log_ids()
+                .iter()
+                .map(|id| id.to_string())
+                .collect(),
+            created_at: entry.timestamp(),
+            updated_at: Some(entry.timestamp()), // LogEntry doesn't have updated_at, using timestamp
         }
     }
 
     fn get_applied_filters(request: &LogSearchRequest) -> Vec<String> {
         let mut filters = Vec::new();
-        
+
         if request.level.is_some() {
             filters.push("level".to_string());
         }
