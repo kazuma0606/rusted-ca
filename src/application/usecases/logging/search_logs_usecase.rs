@@ -5,7 +5,7 @@ use crate::domain::{
     repository::log_repository::{
         LogRepositoryInterface, LogSearchCriteria, LogSearchResult, PerformanceMetrics,
     },
-    value_object::{request_id::RequestId, log_id::LogId},
+    value_object::{log_id::LogId, request_id::RequestId},
 };
 use crate::shared::error::application_error::ApplicationError;
 
@@ -15,7 +15,8 @@ pub type ApplicationResult<T> = Result<T, ApplicationError>;
 pub struct AnalysisCriteria {
     pub start_time: chrono::DateTime<chrono::Utc>,
     pub end_time: chrono::DateTime<chrono::Utc>,
-    pub include_layers: Option<Vec<crate::domain::value_object::architecture_layer::ArchitectureLayer>>,
+    pub include_layers:
+        Option<Vec<crate::domain::value_object::architecture_layer::ArchitectureLayer>>,
     pub min_response_time_ms: Option<u64>,
     pub max_response_time_ms: Option<u64>,
 }
@@ -35,8 +36,7 @@ impl AnalysisCriteria {
     }
 
     pub fn to_search_criteria(&self) -> LogSearchCriteria {
-        LogSearchCriteria::new()
-            .with_time_range(self.start_time, self.end_time)
+        LogSearchCriteria::new().with_time_range(self.start_time, self.end_time)
     }
 
     pub fn validate(&self) -> Result<(), ApplicationError> {
@@ -84,14 +84,19 @@ impl PerformanceReport {
         let mut slow_requests = Vec::new();
 
         for log in &logs {
-            if log.architecture_layer() == crate::domain::value_object::architecture_layer::ArchitectureLayer::Presentation {
+            if log.architecture_layer()
+                == crate::domain::value_object::architecture_layer::ArchitectureLayer::Presentation
+            {
                 metrics.total_requests += 1;
-                
+
                 let response_time = log.http_context().response_time_ms();
                 response_times.push(response_time);
 
                 let status_code = log.http_context().status_code();
-                *metrics.requests_by_status_code.entry(status_code).or_insert(0) += 1;
+                *metrics
+                    .requests_by_status_code
+                    .entry(status_code)
+                    .or_insert(0) += 1;
 
                 if status_code >= 400 {
                     error_logs.push(log.clone());
@@ -110,8 +115,9 @@ impl PerformanceReport {
             response_times.sort();
             metrics.min_response_time_ms = response_times[0];
             metrics.max_response_time_ms = response_times[response_times.len() - 1];
-            metrics.avg_response_time_ms = response_times.iter().sum::<u64>() as f64 / response_times.len() as f64;
-            
+            metrics.avg_response_time_ms =
+                response_times.iter().sum::<u64>() as f64 / response_times.len() as f64;
+
             let p95_index = (response_times.len() as f64 * 0.95) as usize;
             metrics.p95_response_time_ms = response_times[p95_index.min(response_times.len() - 1)];
         }
@@ -122,7 +128,11 @@ impl PerformanceReport {
 
         // Sort and limit results
         error_logs.sort_by(|a, b| b.timestamp().cmp(&a.timestamp()));
-        slow_requests.sort_by(|a, b| b.http_context().response_time_ms().cmp(&a.http_context().response_time_ms()));
+        slow_requests.sort_by(|a, b| {
+            b.http_context()
+                .response_time_ms()
+                .cmp(&a.http_context().response_time_ms())
+        });
 
         // Generate recommendations
         let recommendations = Self::generate_recommendations(&metrics, &error_logs, &slow_requests);
@@ -172,7 +182,7 @@ impl PerformanceReport {
                 .iter()
                 .map(|log| log.http_context().path())
                 .collect();
-            
+
             if slow_paths.len() <= 3 {
                 recommendations.push(format!(
                     "Focus optimization on these slow endpoints: {}",
@@ -183,12 +193,13 @@ impl PerformanceReport {
 
         // Error pattern recommendations
         if !error_logs.is_empty() {
-            let error_patterns: std::collections::HashMap<u16, usize> = error_logs
-                .iter()
-                .fold(std::collections::HashMap::new(), |mut acc, log| {
-                    *acc.entry(log.http_context().status_code()).or_insert(0) += 1;
-                    acc
-                });
+            let error_patterns: std::collections::HashMap<u16, usize> =
+                error_logs
+                    .iter()
+                    .fold(std::collections::HashMap::new(), |mut acc, log| {
+                        *acc.entry(log.http_context().status_code()).or_insert(0) += 1;
+                        acc
+                    });
 
             for (status_code, count) in error_patterns {
                 if count > metrics.total_requests / 20 {
@@ -201,7 +212,8 @@ impl PerformanceReport {
         }
 
         if recommendations.is_empty() {
-            recommendations.push("System performance looks healthy. Continue monitoring.".to_string());
+            recommendations
+                .push("System performance looks healthy. Continue monitoring.".to_string());
         }
 
         recommendations
@@ -240,7 +252,10 @@ impl SearchLogsUsecase {
         PerformanceReport::analyze(search_result.logs)
     }
 
-    pub async fn find_by_request_id(&self, request_id: &RequestId) -> ApplicationResult<Vec<LogEntry>> {
+    pub async fn find_by_request_id(
+        &self,
+        request_id: &RequestId,
+    ) -> ApplicationResult<Vec<LogEntry>> {
         self.log_repository
             .find_by_request_id(request_id)
             .await
@@ -303,13 +318,14 @@ impl SearchLogsUsecase {
         &self,
         start_time: chrono::DateTime<chrono::Utc>,
         end_time: chrono::DateTime<chrono::Utc>,
-    ) -> ApplicationResult<crate::presentation::dto::log_search_response::LogAggregationResponse> {
+    ) -> ApplicationResult<crate::presentation::dto::log_search_response::LogAggregationResponse>
+    {
         use crate::presentation::dto::log_search_response::*;
         use std::collections::HashMap;
 
         // エラーログを取得
         let error_logs = self.find_errors_in_range(start_time, end_time).await?;
-        
+
         // パフォーマンスメトリクスを取得
         let metrics = self.get_performance_metrics(start_time, end_time).await?;
 
@@ -369,23 +385,25 @@ impl SearchLogsUsecase {
         for i in 0..time_intervals {
             let interval_start = start_time + interval_duration * i;
             let interval_end = interval_start + interval_duration;
-            
+
             // この時間間隔のログを検索
-            let criteria = LogSearchCriteria::new()
-                .with_time_range(interval_start, interval_end);
-            
+            let criteria = LogSearchCriteria::new().with_time_range(interval_start, interval_end);
+
             let interval_result = self.search(criteria).await?;
             let request_count = interval_result.logs.len();
-            let error_count = interval_result.logs
+            let error_count = interval_result
+                .logs
                 .iter()
                 .filter(|log| log.level().is_error())
                 .count();
-            
+
             let avg_response_time_ms = if !interval_result.logs.is_empty() {
-                interval_result.logs
+                interval_result
+                    .logs
                     .iter()
                     .map(|log| log.http_context().response_time_ms())
-                    .sum::<u64>() as f64 / interval_result.logs.len() as f64
+                    .sum::<u64>() as f64
+                    / interval_result.logs.len() as f64
             } else {
                 0.0
             };
@@ -399,13 +417,26 @@ impl SearchLogsUsecase {
         }
 
         // トップエラー
-        let mut error_message_counts: HashMap<String, (usize, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>, Vec<String>)> = HashMap::new();
-        
+        let mut error_message_counts: HashMap<
+            String,
+            (
+                usize,
+                chrono::DateTime<chrono::Utc>,
+                chrono::DateTime<chrono::Utc>,
+                Vec<String>,
+            ),
+        > = HashMap::new();
+
         for log in &error_logs {
             let message = log.message().to_string();
-            let endpoint = log.http_context().endpoint().clone();
-            
-            let entry = error_message_counts.entry(message.clone()).or_insert((0, log.timestamp(), log.timestamp(), Vec::new()));
+            let endpoint = log.http_context().endpoint().to_string();
+
+            let entry = error_message_counts.entry(message.clone()).or_insert((
+                0,
+                log.timestamp(),
+                log.timestamp(),
+                Vec::new(),
+            ));
             entry.0 += 1;
             entry.1 = entry.1.min(log.timestamp());
             entry.2 = entry.2.max(log.timestamp());
@@ -416,31 +447,35 @@ impl SearchLogsUsecase {
 
         let mut top_errors: Vec<TopErrorEntry> = error_message_counts
             .into_iter()
-            .map(|(message, (count, first_seen, last_seen, affected_endpoints))| TopErrorEntry {
-                message,
-                count,
-                first_seen,
-                last_seen,
-                affected_endpoints,
-            })
+            .map(
+                |(message, (count, first_seen, last_seen, affected_endpoints))| TopErrorEntry {
+                    message,
+                    count,
+                    first_seen,
+                    last_seen,
+                    affected_endpoints,
+                },
+            )
             .collect();
         top_errors.sort_by(|a, b| b.count.cmp(&a.count));
         top_errors.truncate(10);
 
         // 最も遅いエンドポイント
         let mut endpoint_metrics: HashMap<String, (Vec<u64>, usize)> = HashMap::new();
-        
+
         // 全ログを取得して遅いエンドポイントを計算
         let all_criteria = LogSearchCriteria::new()
             .with_time_range(start_time, end_time)
-            .with_architecture_layer(crate::domain::value_object::architecture_layer::ArchitectureLayer::Presentation);
-        
+            .with_architecture_layer(
+                crate::domain::value_object::architecture_layer::ArchitectureLayer::Presentation,
+            );
+
         let all_logs = self.search(all_criteria).await?;
-        
+
         for log in &all_logs.logs {
-            let endpoint = log.http_context().endpoint().clone();
+            let endpoint = log.http_context().endpoint().to_string();
             let response_time = log.http_context().response_time_ms();
-            
+
             let entry = endpoint_metrics.entry(endpoint).or_insert((Vec::new(), 0));
             entry.0.push(response_time);
             entry.1 += 1;
@@ -449,9 +484,10 @@ impl SearchLogsUsecase {
         let mut slowest_endpoints: Vec<SlowEndpointEntry> = endpoint_metrics
             .into_iter()
             .map(|(endpoint, (response_times, request_count))| {
-                let avg_response_time_ms = response_times.iter().sum::<u64>() as f64 / response_times.len() as f64;
+                let avg_response_time_ms =
+                    response_times.iter().sum::<u64>() as f64 / response_times.len() as f64;
                 let slowest_request_time_ms = *response_times.iter().max().unwrap_or(&0);
-                
+
                 SlowEndpointEntry {
                     endpoint,
                     avg_response_time_ms,
@@ -460,7 +496,11 @@ impl SearchLogsUsecase {
                 }
             })
             .collect();
-        slowest_endpoints.sort_by(|a, b| b.avg_response_time_ms.partial_cmp(&a.avg_response_time_ms).unwrap_or(std::cmp::Ordering::Equal));
+        slowest_endpoints.sort_by(|a, b| {
+            b.avg_response_time_ms
+                .partial_cmp(&a.avg_response_time_ms)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         slowest_endpoints.truncate(10);
 
         Ok(LogAggregationResponse {

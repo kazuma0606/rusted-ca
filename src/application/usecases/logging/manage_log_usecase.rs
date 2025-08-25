@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::domain::{
-    repository::log_repository::LogRepositoryInterface,
+    repository::log_repository::{LogRepositoryInterface, LogSearchCriteria},
     value_object::{analysis_status::AnalysisStatus, log_id::LogId},
 };
 use crate::shared::error::application_error::ApplicationError;
@@ -23,9 +23,12 @@ impl ManageLogUsecase {
         new_status: AnalysisStatus,
     ) -> ApplicationResult<()> {
         // Validate status transition if needed
-        if let Some(current_entry) = self.log_repository.find_by_id(&log_id).await
-            .map_err(|e| ApplicationError::RepositoryError(e.to_string()))? {
-            
+        if let Some(current_entry) = self
+            .log_repository
+            .find_by_id(&log_id)
+            .await
+            .map_err(|e| ApplicationError::RepositoryError(e.to_string()))?
+        {
             let current_status = current_entry.analysis_status();
             if !current_status.can_transition_to(&new_status) {
                 return Err(ApplicationError::ValidationError(format!(
@@ -53,9 +56,13 @@ impl ManageLogUsecase {
         }
 
         // Check if log exists
-        if self.log_repository.find_by_id(&log_id).await
+        if self
+            .log_repository
+            .find_by_id(&log_id)
+            .await
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))?
-            .is_none() {
+            .is_none()
+        {
             return Err(ApplicationError::ResourceNotFound(format!(
                 "Log entry not found: {}",
                 log_id
@@ -70,9 +77,13 @@ impl ManageLogUsecase {
 
     pub async fn remove_tag(&self, log_id: &LogId, tag: &str) -> ApplicationResult<()> {
         // Check if log exists
-        if self.log_repository.find_by_id(&log_id).await
+        if self
+            .log_repository
+            .find_by_id(&log_id)
+            .await
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))?
-            .is_none() {
+            .is_none()
+        {
             return Err(ApplicationError::ResourceNotFound(format!(
                 "Log entry not found: {}",
                 log_id
@@ -91,11 +102,17 @@ impl ManageLogUsecase {
         related_log_id: LogId,
     ) -> ApplicationResult<()> {
         // Validate that both logs exist
-        let log_exists = self.log_repository.find_by_id(&log_id).await
+        let log_exists = self
+            .log_repository
+            .find_by_id(&log_id)
+            .await
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))?
             .is_some();
 
-        let related_exists = self.log_repository.find_by_id(&related_log_id).await
+        let related_exists = self
+            .log_repository
+            .find_by_id(&related_log_id)
+            .await
             .map_err(|e| ApplicationError::RepositoryError(e.to_string()))?
             .is_some();
 
@@ -157,9 +174,8 @@ impl ManageLogUsecase {
     ) -> ApplicationResult<usize> {
         use crate::domain::repository::log_repository::LogSearchCriteria;
 
-        let criteria = LogSearchCriteria::new()
-            .with_end_time(cutoff_time);
-            
+        let criteria = LogSearchCriteria::new().with_end_time(cutoff_time);
+
         self.log_repository
             .count_by_criteria(&criteria)
             .await
@@ -180,7 +196,7 @@ impl ManageLogUsecase {
 
         // For now, we'll just simulate a successful start
         println!("Started analysis for log: {}", log_id);
-        
+
         Ok(())
     }
 
@@ -242,7 +258,10 @@ impl ManageLogUsecase {
         }
 
         // Only allow alphanumeric, underscore, and hyphen
-        if !tag.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+        if !tag
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        {
             return Err(ApplicationError::ValidationError(
                 "Tag can only contain alphanumeric characters, underscore, and hyphen".to_string(),
             ));
@@ -255,8 +274,12 @@ impl ManageLogUsecase {
 #[derive(Debug, Clone)]
 pub struct LogStatistics {
     pub total_logs: usize,
-    pub logs_by_level: std::collections::HashMap<crate::domain::value_object::log_level::LogLevel, usize>,
-    pub logs_by_layer: std::collections::HashMap<crate::domain::value_object::architecture_layer::ArchitectureLayer, usize>,
+    pub logs_by_level:
+        std::collections::HashMap<crate::domain::value_object::log_level::LogLevel, usize>,
+    pub logs_by_layer: std::collections::HashMap<
+        crate::domain::value_object::architecture_layer::ArchitectureLayer,
+        usize,
+    >,
     pub pending_analysis: usize,
     pub completed_analysis: usize,
     pub failed_analysis: usize,
@@ -268,8 +291,14 @@ impl LogStatistics {
             return 0.0;
         }
 
-        let error_count = self.logs_by_level.get(&crate::domain::value_object::log_level::LogLevel::Error).unwrap_or(&0)
-            + self.logs_by_level.get(&crate::domain::value_object::log_level::LogLevel::Critical).unwrap_or(&0);
+        let error_count = self
+            .logs_by_level
+            .get(&crate::domain::value_object::log_level::LogLevel::Error)
+            .unwrap_or(&0)
+            + self
+                .logs_by_level
+                .get(&crate::domain::value_object::log_level::LogLevel::Critical)
+                .unwrap_or(&0);
 
         error_count as f64 / self.total_logs as f64
     }
@@ -314,52 +343,109 @@ mod tests {
 
     #[async_trait::async_trait]
     impl LogRepositoryInterface for MockRepository {
-        async fn store(&self, _entry: &crate::domain::entity::log_entry::LogEntry) -> Result<(), crate::shared::error::domain_error::DomainError> {
+        async fn store(
+            &self,
+            _entry: &crate::domain::entity::log_entry::LogEntry,
+        ) -> Result<(), crate::shared::error::domain_error::DomainError> {
             Ok(())
         }
 
-        async fn find_by_id(&self, _id: &LogId) -> Result<Option<crate::domain::entity::log_entry::LogEntry>, crate::shared::error::domain_error::DomainError> {
+        async fn find_by_id(
+            &self,
+            _id: &LogId,
+        ) -> Result<
+            Option<crate::domain::entity::log_entry::LogEntry>,
+            crate::shared::error::domain_error::DomainError,
+        > {
             // Return None to simulate not found for most tests
             Ok(None)
         }
 
-        async fn find_by_criteria(&self, _criteria: &crate::domain::repository::log_repository::LogSearchCriteria) -> Result<crate::domain::repository::log_repository::LogSearchResult, crate::shared::error::domain_error::DomainError> {
+        async fn find_by_criteria(
+            &self,
+            _criteria: &crate::domain::repository::log_repository::LogSearchCriteria,
+        ) -> Result<
+            crate::domain::repository::log_repository::LogSearchResult,
+            crate::shared::error::domain_error::DomainError,
+        > {
             Ok(crate::domain::repository::log_repository::LogSearchResult::simple(Vec::new()))
         }
 
-        async fn update_analysis_status(&self, _id: &LogId, _status: AnalysisStatus) -> Result<(), crate::shared::error::domain_error::DomainError> {
+        async fn update_analysis_status(
+            &self,
+            _id: &LogId,
+            _status: AnalysisStatus,
+        ) -> Result<(), crate::shared::error::domain_error::DomainError> {
             Ok(())
         }
 
-        async fn add_tags(&self, _id: &LogId, _tags: Vec<String>) -> Result<(), crate::shared::error::domain_error::DomainError> {
+        async fn add_tags(
+            &self,
+            _id: &LogId,
+            _tags: Vec<String>,
+        ) -> Result<(), crate::shared::error::domain_error::DomainError> {
             Ok(())
         }
 
-        async fn remove_tag(&self, _id: &LogId, _tag: &str) -> Result<(), crate::shared::error::domain_error::DomainError> {
+        async fn remove_tag(
+            &self,
+            _id: &LogId,
+            _tag: &str,
+        ) -> Result<(), crate::shared::error::domain_error::DomainError> {
             Ok(())
         }
 
-        async fn add_related_log(&self, _id: &LogId, _related_id: LogId) -> Result<(), crate::shared::error::domain_error::DomainError> {
+        async fn add_related_log(
+            &self,
+            _id: &LogId,
+            _related_id: LogId,
+        ) -> Result<(), crate::shared::error::domain_error::DomainError> {
             Ok(())
         }
 
-        async fn count_by_criteria(&self, _criteria: &crate::domain::repository::log_repository::LogSearchCriteria) -> Result<usize, crate::shared::error::domain_error::DomainError> {
+        async fn count_by_criteria(
+            &self,
+            _criteria: &crate::domain::repository::log_repository::LogSearchCriteria,
+        ) -> Result<usize, crate::shared::error::domain_error::DomainError> {
             Ok(0)
         }
 
-        async fn delete_older_than(&self, _cutoff_time: chrono::DateTime<chrono::Utc>) -> Result<usize, crate::shared::error::domain_error::DomainError> {
+        async fn delete_older_than(
+            &self,
+            _cutoff_time: chrono::DateTime<chrono::Utc>,
+        ) -> Result<usize, crate::shared::error::domain_error::DomainError> {
             Ok(0)
         }
 
-        async fn find_by_request_id(&self, _request_id: &crate::domain::value_object::request_id::RequestId) -> Result<Vec<crate::domain::entity::log_entry::LogEntry>, crate::shared::error::domain_error::DomainError> {
+        async fn find_by_request_id(
+            &self,
+            _request_id: &crate::domain::value_object::request_id::RequestId,
+        ) -> Result<
+            Vec<crate::domain::entity::log_entry::LogEntry>,
+            crate::shared::error::domain_error::DomainError,
+        > {
             Ok(Vec::new())
         }
 
-        async fn find_errors_in_range(&self, _start: chrono::DateTime<chrono::Utc>, _end: chrono::DateTime<chrono::Utc>) -> Result<Vec<crate::domain::entity::log_entry::LogEntry>, crate::shared::error::domain_error::DomainError> {
+        async fn find_errors_in_range(
+            &self,
+            _start: chrono::DateTime<chrono::Utc>,
+            _end: chrono::DateTime<chrono::Utc>,
+        ) -> Result<
+            Vec<crate::domain::entity::log_entry::LogEntry>,
+            crate::shared::error::domain_error::DomainError,
+        > {
             Ok(Vec::new())
         }
 
-        async fn get_performance_metrics(&self, _start: chrono::DateTime<chrono::Utc>, _end: chrono::DateTime<chrono::Utc>) -> Result<crate::domain::repository::log_repository::PerformanceMetrics, crate::shared::error::domain_error::DomainError> {
+        async fn get_performance_metrics(
+            &self,
+            _start: chrono::DateTime<chrono::Utc>,
+            _end: chrono::DateTime<chrono::Utc>,
+        ) -> Result<
+            crate::domain::repository::log_repository::PerformanceMetrics,
+            crate::shared::error::domain_error::DomainError,
+        > {
             Ok(crate::domain::repository::log_repository::PerformanceMetrics::new())
         }
     }
