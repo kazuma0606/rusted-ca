@@ -12,6 +12,7 @@ use crate::infrastructure::di::container::DIContainer;
 use crate::presentation::dto::update_user_request::UpdateUserRequest;
 use crate::presentation::dto::user_create_request_sqlx::UserCreateRequestSqlx;
 use crate::presentation::dto::user_deleted_response::UserDeletedResponse;
+use crate::shared::middleware::logging_middleware::LoggingLayer;
 use axum::{
     Json, Router,
     extract::{Path, State},
@@ -20,14 +21,33 @@ use axum::{
     routing::{delete, get, post, put},
 };
 use std::sync::Arc;
+use tower::ServiceBuilder;
 
 pub fn build_api_router(di: Arc<DIContainer>) -> Router {
     Router::new()
+        // 既存のユーザー管理API
         .route("/api/user", post(create_user_handler))
         .route("/api/user/:id", get(get_user_handler))
         .route("/api/user/:id", put(update_user_handler))
         .route("/api/user/:id", delete(delete_user_handler))
+        
+        // ヘルスチェックAPI
+        .route("/health", get(health_check_handler))
+        
+        // ミドルウェアスタック（順序重要）
+        .layer(
+            ServiceBuilder::new()
+                .layer(LoggingLayer::new(
+                    di.collect_log_usecase.clone(),
+                    di.uuid_generator.clone(),
+                ))
+                // 将来的に他のミドルウェア（メトリクス、セキュリティヘッダーなど）を追加
+        )
         .with_state(di)
+}
+
+async fn health_check_handler() -> impl IntoResponse {
+    (StatusCode::OK, Json(serde_json::json!({"status": "ok"})))
 }
 
 async fn create_user_handler(

@@ -36,11 +36,15 @@ pub mod shared {
         pub mod metrics_middleware;
         pub mod security_headers_middleware;
         pub mod watch_middleware;
+        pub mod logging_middleware;
+        pub mod layer_logging_interceptor;
 
         // pub use auth_middleware::*;
         // pub use cors_middleware::*;
         // pub use metrics_middleware::*;
         // pub use watch_middleware::*;
+        // pub use logging_middleware::*;
+        // pub use layer_logging_interceptor::*;
     }
 
     pub mod utils {

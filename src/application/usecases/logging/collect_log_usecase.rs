@@ -8,7 +8,7 @@ use crate::domain::{
     value_object::log_id::LogId,
 };
 use crate::shared::error::application_error::ApplicationError;
-use crate::shared::metrics::collector::MetricsCollector;
+use crate::shared::metrics::collector::MetricsCollectorInterface;
 
 pub type ApplicationResult<T> = Result<T, ApplicationError>;
 
@@ -27,27 +27,6 @@ impl UuidGenerator {
 impl IdGeneratorInterface for UuidGenerator {
     fn generate_log_id(&self) -> LogId {
         LogId::from(Uuid::new_v4())
-    }
-}
-
-pub trait MetricsCollectorInterface: Send + Sync {
-    fn record_log_event(&self, entry: &LogEntry) -> Result<(), ApplicationError>;
-}
-
-impl MetricsCollectorInterface for MetricsCollector {
-    fn record_log_event(&self, entry: &LogEntry) -> Result<(), ApplicationError> {
-        // Record metrics based on log entry
-        match entry.level() {
-            crate::domain::value_object::log_level::LogLevel::Error | 
-            crate::domain::value_object::log_level::LogLevel::Critical => {
-                // Record error metrics
-                // This would integrate with existing metrics collection
-            }
-            _ => {
-                // Record general metrics
-            }
-        }
-        Ok(())
     }
 }
 

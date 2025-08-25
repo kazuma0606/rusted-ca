@@ -24,7 +24,7 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let redis_pool = redis_cfg.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
 
     // DI
-    let di = Arc::new(DIContainer::new(tidb_pool, redis_pool));
+    let di = Arc::new(DIContainer::new(tidb_pool, redis_pool).await?);
 
     // ルーター
     let app = build_api_router(di.clone());

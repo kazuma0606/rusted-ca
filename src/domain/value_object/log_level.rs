@@ -38,6 +38,10 @@ impl LogLevel {
         matches!(self, Self::Error | Self::Critical)
     }
 
+    pub fn is_error(&self) -> bool {
+        matches!(self, Self::Error | Self::Critical)
+    }
+
     pub fn is_warn_or_above(&self) -> bool {
         matches!(self, Self::Warn | Self::Error | Self::Critical)
     }
