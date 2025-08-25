@@ -137,10 +137,14 @@ pub mod application {
         pub mod user_command_dto;
         pub mod user_request_dto;
         pub mod user_response_dto;
+        
+        // Logging DTOs
+        pub mod collect_log_request;
 
         // pub use user_command_dto::*;
         // pub use user_request_dto::*;
         // pub use user_response_dto::*;
+        // pub use collect_log_request::*;
     }
 
     pub mod commands {
@@ -171,6 +175,9 @@ pub mod application {
         pub mod login_usecase;
         pub mod update_user_sqlx_usecase;
         pub mod update_user_usecase;
+        
+        // Logging usecases
+        pub mod logging;
 
         // pub use create_user_usecase::*;
         // pub use delete_user_usecase::*;
@@ -178,6 +185,7 @@ pub mod application {
         // pub use list_users_usecase::*;
         // pub use login_usecase::*;
         // pub use update_user_usecase::*;
+        // pub use logging::*;
     }
 
     pub mod decorators {
@@ -201,6 +209,9 @@ pub mod infrastructure {
         pub use in_memory_user_query_repository::*;
         // pub use monitored_repository::*;
     }
+    
+    // Logging infrastructure
+    pub mod logging;
 
     pub mod cqrs {
         pub mod command_store;

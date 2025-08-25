@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::shared::error::domain_error::DomainError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum LogLevel {
     Debug,
     Info,

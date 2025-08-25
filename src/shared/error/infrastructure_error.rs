@@ -17,6 +17,12 @@ pub enum InfrastructureError {
     #[error("Data serialization failed: {data_type} - {message}")]
     DataSerialization { data_type: String, message: String },
 
+    #[error("Data deserialization failed: {0}")]
+    Deserialization(String),
+
+    #[error("Database operation failed: {0}")]
+    DatabaseOperation(String),
+
     // Network/External Service Errors
     #[error("Network error: {endpoint} - {message}")]
     Network { endpoint: String, message: String },

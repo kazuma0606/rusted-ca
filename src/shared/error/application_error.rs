@@ -42,6 +42,16 @@ pub enum ApplicationError {
 
     #[error("Not found: {resource} - {id}")]
     NotFound { resource: String, id: String },
+
+    // General purpose errors
+    #[error("Repository error: {0}")]
+    RepositoryError(String),
+
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+
+    #[error("Resource not found: {0}")]
+    ResourceNotFound(String),
 }
 
 // Application Layer Result Type

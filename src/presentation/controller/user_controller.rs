@@ -535,6 +535,51 @@ where
                     }
                 }),
             ),
+            ApplicationError::RepositoryError(msg) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({
+                    "success": false,
+                    "error": {
+                        "code": "REPOSITORY_ERROR",
+                        "message": "Repository operation failed",
+                        "details": {
+                            "layer": "application",
+                            "error": msg,
+                            "timestamp": chrono::Utc::now().to_rfc3339()
+                        }
+                    }
+                }),
+            ),
+            ApplicationError::ValidationError(msg) => (
+                StatusCode::BAD_REQUEST,
+                json!({
+                    "success": false,
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": "Validation failed",
+                        "details": {
+                            "layer": "application",
+                            "error": msg,
+                            "timestamp": chrono::Utc::now().to_rfc3339()
+                        }
+                    }
+                }),
+            ),
+            ApplicationError::ResourceNotFound(msg) => (
+                StatusCode::NOT_FOUND,
+                json!({
+                    "success": false,
+                    "error": {
+                        "code": "RESOURCE_NOT_FOUND",
+                        "message": "Resource not found",
+                        "details": {
+                            "layer": "application",
+                            "error": msg,
+                            "timestamp": chrono::Utc::now().to_rfc3339()
+                        }
+                    }
+                }),
+            ),
         }
     }
 }

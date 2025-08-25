@@ -37,6 +37,7 @@ redis = { version = "0.24", features = ["tokio-comp"] }
 deadpool-redis = "0.22.0"
 argon2 = "0.5.3"
 mongodb = "2.8"
+bson = { version = "2.8", features = ["chrono-0_4"] }
 futures = "0.3"
 tokio-stream = "0.1"
 

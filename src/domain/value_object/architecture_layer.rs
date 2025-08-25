@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::shared::error::domain_error::DomainError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ArchitectureLayer {
     Presentation,
     Application,
