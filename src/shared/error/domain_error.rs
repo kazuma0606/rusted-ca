@@ -20,6 +20,13 @@ pub enum DomainError {
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
 
+    // Financial Value Object Errors
+    #[error("Invalid money: {reason}")]
+    InvalidMoney { reason: String },
+
+    #[error("Currency mismatch: expected '{expected}', got '{actual}'")]
+    CurrencyMismatch { expected: String, actual: String },
+
     // Business Rule Violations
     #[error("Business rule violation: {rule} - {message}")]
     BusinessRuleViolation { rule: String, message: String },

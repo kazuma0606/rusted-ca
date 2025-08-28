@@ -67,20 +67,27 @@ pub mod shared {
 // ===== Domain Layer =====
 pub mod domain {
     pub mod entity {
+        pub mod account;
         pub mod user;
         pub mod log_entry;
 
+        // pub use account::*;
         // pub use user::*;
         // pub use log_entry::*;
     }
 
     pub mod entity_sqlx {
+        pub mod account_sqlx;
         pub mod user_sqlx;
     }
 
     pub mod value_object {
+        pub mod account_id;
+        pub mod account_status;
         pub mod birth_date;
         pub mod email;
+        pub mod merchant_name;
+        pub mod money;
         pub mod pagination;
         pub mod password;
         pub mod phone;
@@ -98,8 +105,12 @@ pub mod domain {
         pub mod request_id;
         pub mod user_context;
 
+        pub use account_id::*;
+        pub use account_status::*;
         pub use birth_date::*;
         pub use email::*;
+        pub use merchant_name::*;
+        pub use money::*;
         pub use pagination::*;
         pub use password::*;
         pub use phone::*;
@@ -119,10 +130,14 @@ pub mod domain {
     }
 
     pub mod repository {
+        pub mod account_command_repository;
+        pub mod account_query_repository;
         pub mod user_command_repository;
         pub mod user_query_repository;
         pub mod log_repository;
 
+        // pub use account_command_repository::*;
+        // pub use account_query_repository::*;
         // pub use user_command_repository::*;
         // pub use user_query_repository::*;
         // pub use log_repository::*;
@@ -138,6 +153,8 @@ pub mod domain {
 // ===== Application Layer =====
 pub mod application {
     pub mod dto {
+        pub mod account_request_dto;
+        pub mod account_response_dto;
         pub mod user_command_dto;
         pub mod user_request_dto;
         pub mod user_response_dto;
@@ -145,6 +162,8 @@ pub mod application {
         // Logging DTOs
         pub mod collect_log_request;
 
+        // pub use account_request_dto::*;
+        // pub use account_response_dto::*;
         // pub use user_command_dto::*;
         // pub use user_request_dto::*;
         // pub use user_response_dto::*;
@@ -170,10 +189,12 @@ pub mod application {
     }
 
     pub mod usecases {
+        pub mod create_account_usecase;
         pub mod create_user_sqlx_usecase;
         pub mod create_user_usecase;
         pub mod delete_user_sqlx_usecase;
         pub mod delete_user_usecase;
+        pub mod get_account_usecase;
         pub mod get_user_usecase;
         pub mod list_users_usecase;
         pub mod login_usecase;
@@ -205,6 +226,7 @@ pub mod infrastructure {
         pub mod in_memory_user_command_repository;
         pub mod in_memory_user_query_repository;
         pub mod monitored_repository;
+        pub mod mysql_account_repository;
         pub mod redis_user_sqlx_repository;
         pub mod sync_user_sqlx_repository;
         pub mod tidb_user_sqlx_repository;
@@ -212,6 +234,7 @@ pub mod infrastructure {
         pub use in_memory_user_command_repository::*;
         pub use in_memory_user_query_repository::*;
         // pub use monitored_repository::*;
+        // pub use mysql_account_repository::*;
     }
     
     // Logging infrastructure
