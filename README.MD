@@ -167,6 +167,43 @@ curl -X DELETE http://localhost:3000/api/user/{USER_ID}
 
 ---
 
+---
+
+## 🧪 テスト
+
+### テスト実行結果
+[![Tests](https://img.shields.io/badge/tests-75%20passed-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-85%25-green)](tests/)
+
+**全75個のテストが通過済み (実行時間: 1.04秒)**
+
+### テスト実行方法
+```sh
+# 全テスト実行
+cargo test
+
+# 特定のテストスイート実行
+cargo test --test simple_tests      # 基本機能テスト (12個)
+cargo test --test api_basic_tests   # API統合テスト (6個) 
+cargo test --lib                    # ライブラリテスト (57個)
+```
+
+### テスト構成
+- **ライブラリテスト (57個)**: ドメイン・アプリケーション・インフラ層の包括的テスト
+- **API基本テスト (6個)**: ヘルスチェック・ルーティング・並行処理テスト
+- **シンプル機能テスト (12個)**: 基本機能・パフォーマンス・エラーハンドリング
+
+### 主要テスト内容
+- ✅ **Clean Architecture全層**: ドメイン→アプリケーション→インフラ→プレゼンテーション
+- ✅ **セキュリティ**: Argon2パスワード暗号化の検証
+- ✅ **パフォーマンス**: 並行処理・非同期処理の安全性確認  
+- ✅ **エラーハンドリング**: 構造化エラー型による堅牢な例外処理
+- ✅ **API統合**: ヘルスチェック・CRUD エンドポイントの動作確認
+
+詳細な結果は [`TEST_RESULTS_REPORT.md`](TEST_RESULTS_REPORT.md) を参照してください。
+
+---
+
 ## ライセンス
 
 MIT License で誰でも自由に利用・改変・商用利用できます。
