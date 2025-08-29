@@ -330,6 +330,16 @@ pub mod presentation {
     }
 
     pub mod dto {
+        // Financial DTOs
+        pub mod account_balance_operation_request;
+        pub mod account_create_request;
+        pub mod account_response;
+        pub mod account_update_request;
+        pub mod payment_create_request;
+        pub mod payment_operation_request;
+        pub mod payment_response;
+        
+        // Existing DTOs
         pub mod api_response;
         pub mod create_user_request;
         pub mod delete_user_request;

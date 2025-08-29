@@ -18,3 +18,8 @@ pub mod account_create_request;
 pub mod account_update_request;
 pub mod account_balance_operation_request;
 pub mod account_response;
+
+// Payment-related DTOs
+pub mod payment_create_request;
+pub mod payment_operation_request;
+pub mod payment_response;
