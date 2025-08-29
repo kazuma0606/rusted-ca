@@ -101,11 +101,14 @@ async fn test_account_balance_operations() {
     account.debit(&debit_amount).unwrap();
     assert_eq!(account.balance().amount_cents(), 6950); // $69.50 = 6950 cents
 
-    // Test overdraft (current implementation allows negative balance)
+    // Test insufficient funds (should fail due to business rule)
     let large_debit = Money::from_major_units(100.0, "USD".to_string()).unwrap();
     let result = account.debit(&large_debit);
-    assert!(result.is_ok()); // Current implementation allows negative balance
-    assert_eq!(account.balance().amount_cents(), -3050); // -$30.50 = -3050 cents
+    assert!(
+        result.is_err(),
+        "Debit larger than balance should fail due to insufficient funds"
+    );
+    assert_eq!(account.balance().amount_cents(), 6950); // Balance should remain unchanged
 
     println!("✅ Account balance operations test passed");
 }

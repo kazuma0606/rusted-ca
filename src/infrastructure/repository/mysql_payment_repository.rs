@@ -45,11 +45,7 @@ impl MySqlPaymentRepository {
         let description: Option<String> = row.get("description");
         let customer_email: Option<String> = row.get("customer_email");
 
-        let metadata_json: Option<String> = row.get("metadata");
-        let metadata = metadata_json
-            .map(|json| serde_json::from_str(&json))
-            .transpose()
-            .map_err(|e| DomainError::InvalidValue(format!("Invalid metadata JSON: {}", e)))?;
+        let metadata: Option<serde_json::Value> = row.get("metadata");
 
         let created_at: DateTime<Utc> = row.get("created_at");
         let updated_at: DateTime<Utc> = row.get("updated_at");
@@ -74,22 +70,20 @@ impl MySqlPaymentRepository {
         &self,
         payment: &Payment,
     ) -> (
-        String,         // id
-        String,         // account_id
-        i64,            // amount_cents
-        String,         // currency_code
-        String,         // payment_method
-        String,         // payment_status
-        String,         // reference_number
-        Option<String>, // description
-        Option<String>, // customer_email
-        Option<String>, // metadata
-        DateTime<Utc>,  // created_at
-        DateTime<Utc>,  // updated_at
+        String,                    // id
+        String,                    // account_id
+        i64,                       // amount_cents
+        String,                    // currency_code
+        String,                    // payment_method
+        String,                    // payment_status
+        String,                    // reference_number
+        Option<String>,            // description
+        Option<String>,            // customer_email
+        Option<serde_json::Value>, // metadata
+        DateTime<Utc>,             // created_at
+        DateTime<Utc>,             // updated_at
     ) {
-        let metadata_json = payment
-            .metadata()
-            .map(|m| serde_json::to_string(m).unwrap_or_default());
+        let metadata_json = payment.metadata().cloned();
 
         (
             payment.id().value().to_string(),
@@ -130,7 +124,10 @@ impl PaymentCommandRepository for MySqlPaymentRepository {
             params.6,
             params.7,
             params.8,
-            params.9,
+            params
+                .9
+                .as_ref()
+                .map(|m| serde_json::to_string(m).unwrap_or_default()),
             params.10,
             params.11
         )

@@ -1,14 +1,21 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Type};
+use sqlx::{
+    FromRow, MySql, Type,
+    decode::Decode,
+    encode::Encode,
+    mysql::{MySqlTypeInfo, MySqlValueRef},
+};
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq, Eq)]
-#[sqlx(type_name = "VARCHAR")] // DB ENUM として扱う
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AccountStatusSqlx {
+    #[serde(rename = "ACTIVE")]
     Active,
+    #[serde(rename = "SUSPENDED")]
     Suspended,
+    #[serde(rename = "CLOSED")]
     Closed,
 }
 
@@ -35,16 +42,51 @@ impl FromStr for AccountStatusSqlx {
     }
 }
 
+// Custom sqlx implementations for MySQL ENUM
+impl Type<MySql> for AccountStatusSqlx {
+    fn type_info() -> MySqlTypeInfo {
+        // Treat ENUM as VARCHAR for compatibility
+        <str as Type<MySql>>::type_info()
+    }
+}
+
+impl Encode<'_, MySql> for AccountStatusSqlx {
+    fn encode_by_ref(&self, buf: &mut Vec<u8>) -> sqlx::encode::IsNull {
+        // For MySQL ENUM, we need to pass the actual string values
+        // The enum values are defined in the database schema: ENUM('ACTIVE', 'SUSPENDED', 'CLOSED')
+        let enum_value = match self {
+            AccountStatusSqlx::Active => "ACTIVE",
+            AccountStatusSqlx::Suspended => "SUSPENDED",
+            AccountStatusSqlx::Closed => "CLOSED",
+        };
+        <&str as Encode<MySql>>::encode_by_ref(&enum_value, buf)
+    }
+}
+
+impl Decode<'_, MySql> for AccountStatusSqlx {
+    fn decode(value: MySqlValueRef<'_>) -> Result<Self, sqlx::error::BoxDynError> {
+        // Try to decode as string first (for ENUM values)
+        if let Ok(s) = <&str as Decode<MySql>>::decode(value.clone()) {
+            return Self::from_str(s).map_err(|_| format!("Invalid account status: {}", s).into());
+        }
+
+        // Fallback: try to decode as bytes and convert to string
+        let bytes = <&[u8] as Decode<MySql>>::decode(value)?;
+        let s = std::str::from_utf8(bytes).map_err(|e| format!("Invalid UTF-8: {}", e))?;
+        Self::from_str(s).map_err(|_| format!("Invalid account status: {}", s).into())
+    }
+}
+
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct AccountSqlx {
-    pub id: String,                    // VARCHAR(36) PRIMARY KEY
-    pub merchant_name: String,         // VARCHAR(255) NOT NULL
-    pub email: String,                 // VARCHAR(255) NOT NULL UNIQUE
-    pub account_status: AccountStatusSqlx, // ENUM('ACTIVE', 'SUSPENDED', 'CLOSED')
-    pub balance_cents: i64,           // BIGINT NOT NULL DEFAULT 0
-    pub currency_code: String,        // CHAR(3) NOT NULL DEFAULT 'JPY'
-    pub created_at: chrono::NaiveDateTime, // TIMESTAMP
-    pub updated_at: chrono::NaiveDateTime, // TIMESTAMP
+    pub id: String,                                // VARCHAR(36) PRIMARY KEY
+    pub merchant_name: String,                     // VARCHAR(255) NOT NULL
+    pub email: String,                             // VARCHAR(255) NOT NULL UNIQUE
+    pub account_status: AccountStatusSqlx,         // ENUM('ACTIVE', 'SUSPENDED', 'CLOSED')
+    pub balance_cents: i64,                        // BIGINT NOT NULL DEFAULT 0
+    pub currency_code: String,                     // CHAR(3) NOT NULL DEFAULT 'JPY'
+    pub created_at: chrono::DateTime<chrono::Utc>, // TIMESTAMP
+    pub updated_at: chrono::DateTime<chrono::Utc>, // TIMESTAMP
 }
 
 // Domain Entity との変換処理
@@ -57,20 +99,25 @@ impl AccountSqlx {
             email: account.email().value().to_string(),
             account_status: match account.status() {
                 crate::domain::value_object::AccountStatus::Active => AccountStatusSqlx::Active,
-                crate::domain::value_object::AccountStatus::Suspended => AccountStatusSqlx::Suspended,
+                crate::domain::value_object::AccountStatus::Suspended => {
+                    AccountStatusSqlx::Suspended
+                }
                 crate::domain::value_object::AccountStatus::Closed => AccountStatusSqlx::Closed,
             },
             balance_cents: account.balance().amount_cents(),
             currency_code: account.balance().currency_code().to_string(),
-            created_at: account.created_at().naive_utc(),
-            updated_at: account.updated_at().naive_utc(),
+            created_at: *account.created_at(),
+            updated_at: *account.updated_at(),
         }
     }
 
     /// AccountSqlx から Domain Account へ変換
-    pub fn to_domain(&self) -> Result<crate::domain::entity::account::Account, Box<dyn std::error::Error + Send + Sync>> {
-        use crate::domain::value_object::*;
+    pub fn to_domain(
+        &self,
+    ) -> Result<crate::domain::entity::account::Account, Box<dyn std::error::Error + Send + Sync>>
+    {
         use crate::domain::entity::account::Account;
+        use crate::domain::value_object::*;
         use chrono::{DateTime, Utc};
 
         let account_id = AccountId::new(self.id.clone())?;
@@ -82,11 +129,19 @@ impl AccountSqlx {
             AccountStatusSqlx::Closed => AccountStatus::Closed,
         };
         let balance = Money::new(self.balance_cents, self.currency_code.clone())?;
-        let created_at = DateTime::<Utc>::from_naive_utc_and_offset(self.created_at, Utc);
-        let updated_at = DateTime::<Utc>::from_naive_utc_and_offset(self.updated_at, Utc);
+        let created_at = self.created_at;
+        let updated_at = self.updated_at;
 
-        Account::new(account_id, merchant_name, email, status, balance, created_at, updated_at)
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
+        Account::new(
+            account_id,
+            merchant_name,
+            email,
+            status,
+            balance,
+            created_at,
+            updated_at,
+        )
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
     }
 }
 
@@ -94,7 +149,7 @@ impl AccountSqlx {
 mod tests {
     use super::*;
     use crate::domain::entity::account::Account;
-    use crate::domain::value_object::{AccountId, MerchantName, Email, AccountStatus, Money};
+    use crate::domain::value_object::{AccountId, AccountStatus, Email, MerchantName, Money};
     use chrono::Utc;
 
     #[test]
@@ -106,10 +161,22 @@ mod tests {
 
     #[test]
     fn test_account_sqlx_status_from_str() {
-        assert_eq!("ACTIVE".parse::<AccountStatusSqlx>().unwrap(), AccountStatusSqlx::Active);
-        assert_eq!("active".parse::<AccountStatusSqlx>().unwrap(), AccountStatusSqlx::Active);
-        assert_eq!("SUSPENDED".parse::<AccountStatusSqlx>().unwrap(), AccountStatusSqlx::Suspended);
-        assert_eq!("CLOSED".parse::<AccountStatusSqlx>().unwrap(), AccountStatusSqlx::Closed);
+        assert_eq!(
+            "ACTIVE".parse::<AccountStatusSqlx>().unwrap(),
+            AccountStatusSqlx::Active
+        );
+        assert_eq!(
+            "active".parse::<AccountStatusSqlx>().unwrap(),
+            AccountStatusSqlx::Active
+        );
+        assert_eq!(
+            "SUSPENDED".parse::<AccountStatusSqlx>().unwrap(),
+            AccountStatusSqlx::Suspended
+        );
+        assert_eq!(
+            "CLOSED".parse::<AccountStatusSqlx>().unwrap(),
+            AccountStatusSqlx::Closed
+        );
     }
 
     #[test]

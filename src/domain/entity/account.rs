@@ -2,9 +2,7 @@
 // Account エンティティ + ビジネスロジック
 // 2025/8/28
 
-use crate::domain::value_object::{
-    AccountId, AccountStatus, Email, MerchantName, Money,
-};
+use crate::domain::value_object::{AccountId, AccountStatus, Email, MerchantName, Money};
 use crate::shared::error::domain_error::{DomainError, DomainResult};
 use chrono::{DateTime, Utc};
 
@@ -161,6 +159,18 @@ impl Account {
             });
         }
 
+        // Business rule: Cannot debit more than available balance (insufficient funds check)
+        if self.balance.amount_cents() < amount.amount_cents() {
+            return Err(DomainError::BusinessRuleViolation {
+                rule: "InsufficientFunds".to_string(),
+                message: format!(
+                    "Insufficient funds. Available: {}, Requested: {}",
+                    self.balance.to_major_units(),
+                    amount.to_major_units()
+                ),
+            });
+        }
+
         self.balance = self.balance.subtract(amount)?;
         self.updated_at = Utc::now();
         Ok(())
@@ -234,7 +244,7 @@ mod tests {
     fn test_account_credit() {
         let mut account = create_test_account();
         let credit_amount = Money::from_major_units(100.0, "USD".to_string()).unwrap();
-        
+
         assert!(account.credit(&credit_amount).is_ok());
         assert_eq!(account.balance().amount_cents(), 10000); // $100 = 10000 cents
     }
@@ -244,7 +254,7 @@ mod tests {
         let mut account = create_test_account();
         let credit_amount = Money::from_major_units(100.0, "USD".to_string()).unwrap();
         let debit_amount = Money::from_major_units(50.0, "USD".to_string()).unwrap();
-        
+
         account.credit(&credit_amount).unwrap();
         assert!(account.debit(&debit_amount).is_ok());
         assert_eq!(account.balance().amount_cents(), 5000); // $50 = 5000 cents
@@ -255,10 +265,10 @@ mod tests {
         let mut account = create_test_account();
         let credit_amount = Money::from_major_units(100.0, "USD".to_string()).unwrap();
         let debit_amount = Money::from_major_units(50.0, "USD".to_string()).unwrap();
-        
+
         account.credit(&credit_amount).unwrap();
         account.update_status(AccountStatus::Suspended).unwrap();
-        
+
         assert!(account.debit(&debit_amount).is_err());
     }
 
@@ -266,7 +276,7 @@ mod tests {
     fn test_account_cannot_modify_closed() {
         let mut account = create_test_account();
         account.close().unwrap();
-        
+
         let amount = Money::from_major_units(100.0, "USD".to_string()).unwrap();
         assert!(account.credit(&amount).is_err());
         assert!(account.debit(&amount).is_err());
@@ -276,7 +286,7 @@ mod tests {
     fn test_account_cannot_close_with_balance() {
         let mut account = create_test_account();
         let credit_amount = Money::from_major_units(100.0, "USD".to_string()).unwrap();
-        
+
         account.credit(&credit_amount).unwrap();
         assert!(account.close().is_err());
     }
@@ -285,7 +295,7 @@ mod tests {
     fn test_account_cannot_reactivate_closed() {
         let mut account = create_test_account();
         account.close().unwrap();
-        
+
         assert!(account.update_status(AccountStatus::Active).is_err());
     }
 
@@ -293,7 +303,7 @@ mod tests {
     fn test_account_currency_mismatch() {
         let mut account = create_test_account();
         let wrong_currency_amount = Money::from_major_units(100.0, "JPY".to_string()).unwrap();
-        
+
         assert!(account.credit(&wrong_currency_amount).is_err());
     }
 }
