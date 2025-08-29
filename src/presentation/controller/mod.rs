@@ -1,3 +1,4 @@
+pub mod account_controller;
 pub mod auth_controller;
 pub mod fortune_controller;
 pub mod health_controller;

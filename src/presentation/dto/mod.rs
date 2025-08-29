@@ -12,3 +12,9 @@ pub mod user_create_request_sqlx;
 pub mod user_deleted_response;
 pub mod user_response;
 pub mod user_response_sqlx;
+
+// Account-related DTOs
+pub mod account_create_request;
+pub mod account_update_request;
+pub mod account_balance_operation_request;
+pub mod account_response;

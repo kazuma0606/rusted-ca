@@ -38,6 +38,19 @@ pub enum DomainError {
         message: String,
     },
 
+    // Payment-related Errors
+    #[error("Invalid payment ID: {reason}")]
+    InvalidPaymentId { reason: String },
+
+    #[error("Invalid payment method: {reason}")]
+    InvalidPaymentMethod { reason: String },
+
+    #[error("Invalid payment status: {reason}")]
+    InvalidPaymentStatus { reason: String },
+
+    #[error("Invalid reference number: {reason}")]
+    InvalidReferenceNumber { reason: String },
+
     // Domain Logic Errors
     #[error("Invariant violation: {message}")]
     InvariantViolation { message: String },

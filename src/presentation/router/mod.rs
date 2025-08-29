@@ -1,3 +1,4 @@
+pub mod account_router;
 mod auth_router;
 mod fortune_router;
 mod grpc_router;

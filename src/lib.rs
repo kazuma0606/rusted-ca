@@ -70,10 +70,12 @@ pub mod domain {
         pub mod account;
         pub mod user;
         pub mod log_entry;
+        pub mod payment;
 
         // pub use account::*;
         // pub use user::*;
         // pub use log_entry::*;
+        // pub use payment::*;
     }
 
     pub mod entity_sqlx {
@@ -135,11 +137,15 @@ pub mod domain {
         pub mod user_command_repository;
         pub mod user_query_repository;
         pub mod log_repository;
+        pub mod payment_command_repository;
+        pub mod payment_query_repository;
 
         // pub use account_command_repository::*;
         // pub use account_query_repository::*;
         // pub use user_command_repository::*;
         // pub use user_query_repository::*;
+        // pub use payment_command_repository::*;
+        // pub use payment_query_repository::*;
         // pub use log_repository::*;
     }
 
@@ -227,6 +233,7 @@ pub mod infrastructure {
         pub mod in_memory_user_query_repository;
         pub mod monitored_repository;
         pub mod mysql_account_repository;
+        pub mod mysql_payment_repository;
         pub mod redis_user_sqlx_repository;
         pub mod sync_user_sqlx_repository;
         pub mod tidb_user_sqlx_repository;

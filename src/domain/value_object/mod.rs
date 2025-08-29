@@ -10,6 +10,12 @@ pub mod phone;
 pub mod user_id;
 pub mod user_name;
 
+// Payment-related value objects
+pub mod payment_id;
+pub mod payment_method;
+pub mod payment_status;
+pub mod reference_number;
+
 // Logging-related value objects
 pub mod analysis_status;
 pub mod architecture_layer;
@@ -32,6 +38,12 @@ pub use password::Password;
 pub use phone::Phone;
 pub use user_id::UserId;
 pub use user_name::UserName;
+
+// Payment exports
+pub use payment_id::PaymentId;
+pub use payment_method::PaymentMethod;
+pub use payment_status::PaymentStatus;
+pub use reference_number::ReferenceNumber;
 
 // Logging exports
 pub use analysis_status::AnalysisStatus;
