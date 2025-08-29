@@ -113,15 +113,25 @@ impl ProcessPaymentUseCase {
     /// Process payment end-to-end (simulate external payment processing)
     pub async fn process_payment(&self, payment_id: PaymentId) -> ApplicationResult<Payment> {
         // Start processing
-        let payment = self.start_processing(payment_id.clone()).await?;
+        let mut payment = self.start_processing(payment_id.clone()).await?;
 
         // Simulate external payment gateway processing
         let processing_result = self.simulate_payment_gateway(&payment).await;
 
         match processing_result {
             Ok(_) => {
-                // Payment successful
-                self.mark_successful(payment_id).await
+                // Payment successful - update the payment object directly
+                payment
+                    .mark_successful()
+                    .map_err(|e| ApplicationError::Domain(e))?;
+
+                // Save updated payment
+                self.command_repository
+                    .update(&payment)
+                    .await
+                    .map_err(|e| ApplicationError::RepositoryError(e.to_string()))?;
+
+                Ok(payment)
             }
             Err(failure_reason) => {
                 // Payment failed
@@ -230,6 +240,13 @@ mod tests {
         repository.create(&payment).await.unwrap();
 
         let result = usecase.process_payment(payment.id().clone()).await;
-        assert!(result.is_ok());
+        if let Err(ref e) = result {
+            println!("Process payment failed: {:?}", e);
+        }
+        assert!(
+            result.is_ok(),
+            "Process payment should succeed: {:?}",
+            result
+        );
     }
 }

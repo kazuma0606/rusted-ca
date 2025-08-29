@@ -160,7 +160,8 @@ mod tests {
         )
         .unwrap();
 
-        // Mark as successful
+        // Process payment through correct state transitions
+        payment.start_processing().unwrap();
         payment.mark_successful().unwrap();
 
         // Add to mock repository
@@ -191,7 +192,8 @@ mod tests {
         )
         .unwrap();
 
-        // Mark as successful
+        // Process payment through correct state transitions
+        payment.start_processing().unwrap();
         payment.mark_successful().unwrap();
 
         // Add to mock repository
@@ -255,7 +257,8 @@ mod tests {
         )
         .unwrap();
 
-        // Mark as successful
+        // Process payment through correct state transitions
+        payment.start_processing().unwrap();
         payment.mark_successful().unwrap();
 
         // Add to mock repository

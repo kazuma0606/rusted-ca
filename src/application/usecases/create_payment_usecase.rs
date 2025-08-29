@@ -54,7 +54,9 @@ impl CreatePaymentUseCase {
             .is_none();
 
         if !is_unique {
-            return Err(ApplicationError::ValidationError("Reference number already exists".to_string()));
+            return Err(ApplicationError::ValidationError(
+                "Reference number already exists".to_string(),
+            ));
         }
 
         // Save the payment
@@ -68,7 +70,7 @@ impl CreatePaymentUseCase {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use crate::domain::value_object::PaymentId;
     use async_trait::async_trait;
@@ -90,25 +92,40 @@ mod tests {
 
     #[async_trait]
     impl PaymentCommandRepository for MockPaymentRepository {
-        async fn create(&self, payment: &Payment) -> crate::shared::error::domain_error::DomainResult<()> {
+        async fn create(
+            &self,
+            payment: &Payment,
+        ) -> crate::shared::error::domain_error::DomainResult<()> {
             let mut payments = self.payments.lock().unwrap();
             payments.insert(payment.id().value().to_string(), payment.clone());
             Ok(())
         }
 
-        async fn update(&self, _payment: &Payment) -> crate::shared::error::domain_error::DomainResult<()> {
+        async fn update(
+            &self,
+            _payment: &Payment,
+        ) -> crate::shared::error::domain_error::DomainResult<()> {
             Ok(())
         }
 
-        async fn delete(&self, _payment_id: &PaymentId) -> crate::shared::error::domain_error::DomainResult<()> {
+        async fn delete(
+            &self,
+            _payment_id: &PaymentId,
+        ) -> crate::shared::error::domain_error::DomainResult<()> {
             Ok(())
         }
 
-        async fn exists_by_id(&self, _payment_id: &PaymentId) -> crate::shared::error::domain_error::DomainResult<bool> {
+        async fn exists_by_id(
+            &self,
+            _payment_id: &PaymentId,
+        ) -> crate::shared::error::domain_error::DomainResult<bool> {
             Ok(false)
         }
 
-        async fn is_reference_unique(&self, _reference_number: &crate::domain::value_object::ReferenceNumber) -> crate::shared::error::domain_error::DomainResult<bool> {
+        async fn is_reference_unique(
+            &self,
+            _reference_number: &crate::domain::value_object::ReferenceNumber,
+        ) -> crate::shared::error::domain_error::DomainResult<bool> {
             Ok(true)
         }
 
@@ -120,47 +137,80 @@ mod tests {
             Ok(())
         }
 
-        async fn rollback_transaction(&self) -> crate::shared::error::domain_error::DomainResult<()> {
+        async fn rollback_transaction(
+            &self,
+        ) -> crate::shared::error::domain_error::DomainResult<()> {
             Ok(())
         }
     }
 
     #[async_trait]
     impl PaymentQueryRepository for MockPaymentRepository {
-        async fn find_by_id(&self, payment_id: &PaymentId) -> crate::shared::error::domain_error::DomainResult<Option<Payment>> {
+        async fn find_by_id(
+            &self,
+            payment_id: &PaymentId,
+        ) -> crate::shared::error::domain_error::DomainResult<Option<Payment>> {
             let payments = self.payments.lock().unwrap();
             Ok(payments.get(payment_id.value()).cloned())
         }
 
-        async fn find_by_reference(&self, _reference_number: &crate::domain::value_object::ReferenceNumber) -> crate::shared::error::domain_error::DomainResult<Option<Payment>> {
+        async fn find_by_reference(
+            &self,
+            _reference_number: &crate::domain::value_object::ReferenceNumber,
+        ) -> crate::shared::error::domain_error::DomainResult<Option<Payment>> {
             Ok(None) // Always unique for tests
         }
 
-        async fn find_by_account_id(&self, _account_id: &AccountId) -> crate::shared::error::domain_error::DomainResult<Vec<Payment>> {
+        async fn find_by_account_id(
+            &self,
+            _account_id: &AccountId,
+        ) -> crate::shared::error::domain_error::DomainResult<Vec<Payment>> {
             Ok(vec![])
         }
 
-        async fn find_by_status(&self, _status: &crate::domain::value_object::PaymentStatus) -> crate::shared::error::domain_error::DomainResult<Vec<Payment>> {
+        async fn find_by_status(
+            &self,
+            _status: &crate::domain::value_object::PaymentStatus,
+        ) -> crate::shared::error::domain_error::DomainResult<Vec<Payment>> {
             Ok(vec![])
         }
 
-        async fn search(&self, _criteria: &crate::domain::repository::payment_query_repository::PaymentSearchCriteria) -> crate::shared::error::domain_error::DomainResult<Vec<Payment>> {
+        async fn search(
+            &self,
+            _criteria: &crate::domain::repository::payment_query_repository::PaymentSearchCriteria,
+        ) -> crate::shared::error::domain_error::DomainResult<Vec<Payment>> {
             Ok(vec![])
         }
 
-        async fn count(&self, _criteria: &crate::domain::repository::payment_query_repository::PaymentSearchCriteria) -> crate::shared::error::domain_error::DomainResult<u64> {
+        async fn count(
+            &self,
+            _criteria: &crate::domain::repository::payment_query_repository::PaymentSearchCriteria,
+        ) -> crate::shared::error::domain_error::DomainResult<u64> {
             Ok(0)
         }
 
-        async fn find_requiring_processing(&self, _older_than_minutes: u32) -> crate::shared::error::domain_error::DomainResult<Vec<Payment>> {
+        async fn find_requiring_processing(
+            &self,
+            _older_than_minutes: u32,
+        ) -> crate::shared::error::domain_error::DomainResult<Vec<Payment>> {
             Ok(vec![])
         }
 
-        async fn find_successful_payments(&self, _account_id: &AccountId, _from_date: chrono::DateTime<chrono::Utc>, _to_date: chrono::DateTime<chrono::Utc>) -> crate::shared::error::domain_error::DomainResult<Vec<Payment>> {
+        async fn find_successful_payments(
+            &self,
+            _account_id: &AccountId,
+            _from_date: chrono::DateTime<chrono::Utc>,
+            _to_date: chrono::DateTime<chrono::Utc>,
+        ) -> crate::shared::error::domain_error::DomainResult<Vec<Payment>> {
             Ok(vec![])
         }
 
-        async fn get_payment_stats(&self, _account_id: &AccountId) -> crate::shared::error::domain_error::DomainResult<crate::domain::repository::payment_query_repository::PaymentStats> {
+        async fn get_payment_stats(
+            &self,
+            _account_id: &AccountId,
+        ) -> crate::shared::error::domain_error::DomainResult<
+            crate::domain::repository::payment_query_repository::PaymentStats,
+        > {
             use crate::domain::repository::payment_query_repository::PaymentStats;
             Ok(PaymentStats {
                 total_payments: 0,
@@ -178,23 +228,22 @@ mod tests {
     #[tokio::test]
     async fn test_create_payment_success() {
         let repository = Arc::new(MockPaymentRepository::new());
-        let usecase = CreatePaymentUseCase::new(
-            repository.clone(),
-            repository.clone(),
-        );
+        let usecase = CreatePaymentUseCase::new(repository.clone(), repository.clone());
 
         let account_id = AccountId::generate();
         let amount = Money::from_major_units(100.0, "USD".to_string()).unwrap();
         let payment_method = PaymentMethod::Card;
 
-        let result = usecase.execute(
-            account_id,
-            amount,
-            payment_method,
-            Some("Test payment".to_string()),
-            Some("customer@example.com".to_string()),
-            None,
-        ).await;
+        let result = usecase
+            .execute(
+                account_id,
+                amount,
+                payment_method,
+                Some("Test payment".to_string()),
+                Some("customer@example.com".to_string()),
+                None,
+            )
+            .await;
 
         assert!(result.is_ok());
         let payment = result.unwrap();
