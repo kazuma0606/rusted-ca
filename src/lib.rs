@@ -219,6 +219,11 @@ pub mod application {
         pub mod update_user_sqlx_usecase;
         pub mod update_user_usecase;
 
+        // Payment usecases
+        pub mod create_payment_usecase;
+        pub mod process_payment_usecase;
+        pub mod refund_payment_usecase;
+
         // Logging usecases
         pub mod logging;
 
