@@ -58,3 +58,9 @@ pub enum DomainError {
 
 // Domain Layer Result Type
 pub type DomainResult<T> = Result<T, DomainError>;
+
+impl From<sqlx::Error> for DomainError {
+    fn from(err: sqlx::Error) -> Self {
+        DomainError::InvalidOperation(format!("Database error: {}", err))
+    }
+}

@@ -33,11 +33,11 @@ pub mod shared {
         pub mod auth_middleware;
         pub mod cors_middleware;
         pub mod discord_middleware;
+        pub mod layer_logging_interceptor;
+        pub mod logging_middleware;
         pub mod metrics_middleware;
         pub mod security_headers_middleware;
         pub mod watch_middleware;
-        pub mod logging_middleware;
-        pub mod layer_logging_interceptor;
 
         // pub use auth_middleware::*;
         // pub use cors_middleware::*;
@@ -68,9 +68,9 @@ pub mod shared {
 pub mod domain {
     pub mod entity {
         pub mod account;
-        pub mod user;
         pub mod log_entry;
         pub mod payment;
+        pub mod user;
 
         // pub use account::*;
         // pub use user::*;
@@ -95,7 +95,13 @@ pub mod domain {
         pub mod phone;
         pub mod user_id;
         pub mod user_name;
-        
+
+        // Payment-related value objects
+        pub mod payment_id;
+        pub mod payment_method;
+        pub mod payment_status;
+        pub mod reference_number;
+
         // Logging-related value objects
         pub mod analysis_status;
         pub mod architecture_layer;
@@ -118,7 +124,13 @@ pub mod domain {
         pub use phone::*;
         pub use user_id::*;
         pub use user_name::*;
-        
+
+        // Payment exports
+        pub use payment_id::*;
+        pub use payment_method::*;
+        pub use payment_status::*;
+        pub use reference_number::*;
+
         // Logging exports
         pub use analysis_status::*;
         pub use architecture_layer::*;
@@ -134,11 +146,11 @@ pub mod domain {
     pub mod repository {
         pub mod account_command_repository;
         pub mod account_query_repository;
-        pub mod user_command_repository;
-        pub mod user_query_repository;
         pub mod log_repository;
         pub mod payment_command_repository;
         pub mod payment_query_repository;
+        pub mod user_command_repository;
+        pub mod user_query_repository;
 
         // pub use account_command_repository::*;
         // pub use account_query_repository::*;
@@ -164,7 +176,7 @@ pub mod application {
         pub mod user_command_dto;
         pub mod user_request_dto;
         pub mod user_response_dto;
-        
+
         // Logging DTOs
         pub mod collect_log_request;
 
@@ -206,7 +218,7 @@ pub mod application {
         pub mod login_usecase;
         pub mod update_user_sqlx_usecase;
         pub mod update_user_usecase;
-        
+
         // Logging usecases
         pub mod logging;
 
@@ -243,7 +255,7 @@ pub mod infrastructure {
         // pub use monitored_repository::*;
         // pub use mysql_account_repository::*;
     }
-    
+
     // Logging infrastructure
     pub mod logging;
 
@@ -360,7 +372,6 @@ pub mod state {
 
     // pub use app_state::*;
 }
-
 
 // ===== Public API Re-exports =====
 // よく使用される型の再エクスポート
