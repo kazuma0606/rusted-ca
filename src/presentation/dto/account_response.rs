@@ -3,6 +3,7 @@
 // 2025/8/28
 
 use crate::domain::entity::account::Account;
+use crate::application::dto::account_response_dto::AccountResponseDto;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -38,6 +39,22 @@ impl AccountResponse {
             },
             created_at: *account.created_at(),
             updated_at: *account.updated_at(),
+        }
+    }
+
+    pub fn from_app_dto(dto: AccountResponseDto) -> Self {
+        Self {
+            id: dto.id,
+            merchant_name: dto.merchant_name,
+            email: dto.email,
+            status: dto.status,
+            balance: BalanceResponse {
+                amount: (dto.balance_cents as f64) / 100.0, // Convert cents to dollars
+                currency_code: dto.currency_code,
+                amount_cents: dto.balance_cents,
+            },
+            created_at: dto.created_at,
+            updated_at: dto.updated_at,
         }
     }
 }

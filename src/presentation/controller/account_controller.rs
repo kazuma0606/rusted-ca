@@ -3,8 +3,12 @@
 // 2025/8/28
 
 use crate::application::usecases::{
-    create_account_usecase::CreateAccountUseCase,
-    get_account_usecase::GetAccountUseCase,
+    create_account_usecase::{CreateAccountUseCase, CreateAccountUsecaseInterface},
+    get_account_usecase::{GetAccountUseCase, GetAccountUsecaseInterface},
+};
+use crate::application::dto::{
+    account_request_dto::CreateAccountRequestDto,
+    account_response_dto::AccountResponseDto,
 };
 use crate::domain::value_object::{AccountId, AccountStatus, Email, MerchantName, Money};
 use crate::presentation::dto::{
@@ -26,14 +30,14 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct AccountController {
-    create_account_usecase: Arc<CreateAccountUseCase>,
-    get_account_usecase: Arc<GetAccountUseCase>,
+    create_account_usecase: Arc<dyn CreateAccountUsecaseInterface>,
+    get_account_usecase: Arc<dyn GetAccountUsecaseInterface>,
 }
 
 impl AccountController {
     pub fn new(
-        create_account_usecase: Arc<CreateAccountUseCase>,
-        get_account_usecase: Arc<GetAccountUseCase>,
+        create_account_usecase: Arc<dyn CreateAccountUsecaseInterface>,
+        get_account_usecase: Arc<dyn GetAccountUsecaseInterface>,
     ) -> Self {
         Self {
             create_account_usecase,
@@ -47,29 +51,24 @@ impl AccountController {
         &self,
         Json(request): Json<AccountCreateRequest>,
     ) -> PresentationResult<Json<ApiResponse<AccountResponse>>> {
-        // Validate input
-        let merchant_name = MerchantName::new(request.merchant_name)
-            .map_err(|e| PresentationError::ValidationError {
-                field: "merchant_name".to_string(),
-                message: e.to_string(),
-            })?;
+        // Convert Presentation DTO to Application DTO
+        let app_dto = CreateAccountRequestDto {
+            merchant_name: request.merchant_name,
+            email: request.email,
+            currency_code: request.currency_code,
+        };
 
-        let email = Email::new(request.email)
-            .map_err(|e| PresentationError::ValidationError {
-                field: "email".to_string(),
-                message: e.to_string(),
-            })?;
-
-        // Create account through use case
-        let account = self
+        // Execute use case
+        let result = self
             .create_account_usecase
-            .execute(merchant_name, email, request.currency_code)
+            .execute(app_dto)
             .await
             .map_err(|e| PresentationError::BusinessLogicError {
                 message: e.to_string(),
             })?;
 
-        let response = AccountResponse::from_account(&account);
+        // Convert Application DTO to Presentation DTO
+        let response = AccountResponse::from_app_dto(result);
         Ok(Json(ApiResponse::success(response)))
     }
 
@@ -79,28 +78,22 @@ impl AccountController {
         &self,
         Path(id): Path<String>,
     ) -> PresentationResult<Json<ApiResponse<AccountResponse>>> {
-        let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::ValidationError {
-                field: "id".to_string(),
-                message: e.to_string(),
-            })?;
-
-        let account = self
+        let account_dto = self
             .get_account_usecase
-            .execute(account_id)
+            .execute(id.clone())
             .await
             .map_err(|e| PresentationError::BusinessLogicError {
                 message: e.to_string(),
             })?;
 
-        match account {
-            Some(account) => {
-                let response = AccountResponse::from_account(&account);
+        match account_dto {
+            Some(dto) => {
+                let response = AccountResponse::from_app_dto(dto);
                 Ok(Json(ApiResponse::success(response)))
             }
             None => Err(PresentationError::NotFound {
                 resource: "Account".to_string(),
-                id: Path(id).0,
+                id,
             }),
         }
     }

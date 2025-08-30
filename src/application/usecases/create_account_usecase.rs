@@ -20,12 +20,12 @@ pub trait CreateAccountUsecaseInterface: Send + Sync {
     ) -> ApplicationResult<AccountResponseDto>;
 }
 
-pub struct CreateAccountUsecase {
+pub struct CreateAccountUseCase {
     command_repository: Arc<dyn AccountCommandRepositoryInterface>,
     query_repository: Arc<dyn AccountQueryRepositoryInterface>,
 }
 
-impl CreateAccountUsecase {
+impl CreateAccountUseCase {
     pub fn new(
         command_repository: Arc<dyn AccountCommandRepositoryInterface>,
         query_repository: Arc<dyn AccountQueryRepositoryInterface>,
@@ -38,7 +38,7 @@ impl CreateAccountUsecase {
 }
 
 #[async_trait]
-impl CreateAccountUsecaseInterface for CreateAccountUsecase {
+impl CreateAccountUsecaseInterface for CreateAccountUseCase {
     async fn execute(
         &self,
         request_dto: CreateAccountRequestDto,

@@ -17,11 +17,11 @@ pub trait GetAccountUsecaseInterface: Send + Sync {
     ) -> ApplicationResult<Option<AccountResponseDto>>;
 }
 
-pub struct GetAccountUsecase {
+pub struct GetAccountUseCase {
     query_repository: Arc<dyn AccountQueryRepositoryInterface>,
 }
 
-impl GetAccountUsecase {
+impl GetAccountUseCase {
     pub fn new(
         query_repository: Arc<dyn AccountQueryRepositoryInterface>,
     ) -> Self {
@@ -32,7 +32,7 @@ impl GetAccountUsecase {
 }
 
 #[async_trait]
-impl GetAccountUsecaseInterface for GetAccountUsecase {
+impl GetAccountUsecaseInterface for GetAccountUseCase {
     async fn execute(
         &self,
         account_id: String,

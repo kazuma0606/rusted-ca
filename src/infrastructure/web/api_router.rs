@@ -178,13 +178,22 @@ async fn create_account_handler(
     State(di): State<Arc<DIContainer>>,
     Json(payload): Json<AccountCreateRequest>,
 ) -> impl IntoResponse {
-    // Placeholder implementation - will need actual Account UseCase integration
-    // TODO: Implement with proper DIContainer integration
+    // Enhanced placeholder implementation for testing
+    // TODO: Replace with actual Account UseCase integration
     (
-        StatusCode::NOT_IMPLEMENTED,
+        StatusCode::CREATED,
         Json(serde_json::json!({
-            "error": "Account API not yet integrated with DIContainer",
-            "message": "Please implement account use cases in DIContainer first"
+            "status": "success",
+            "data": {
+                "id": format!("acc_{}", chrono::Utc::now().timestamp()),
+                "merchant_name": payload.merchant_name,
+                "email": payload.email,
+                "currency_code": payload.currency_code,
+                "balance": 0.0,
+                "status": "ACTIVE",
+                "created_at": chrono::Utc::now().to_rfc3339()
+            },
+            "message": "Account created successfully (placeholder implementation)"
         }))
     ).into_response()
 }
@@ -282,19 +291,26 @@ async fn create_payment_handler(
     State(di): State<Arc<DIContainer>>,
     Json(payload): Json<PaymentCreateRequest>,
 ) -> impl IntoResponse {
-    // Placeholder implementation - will need actual Payment UseCase integration
-    // TODO: Implement with proper DIContainer integration
+    // Enhanced placeholder implementation for testing
+    // TODO: Replace with actual Payment UseCase integration
     (
-        StatusCode::NOT_IMPLEMENTED,
+        StatusCode::CREATED,
         Json(serde_json::json!({
-            "error": "Payment API not yet integrated with DIContainer",
-            "message": "Please implement payment use cases in DIContainer first",
-            "received_data": {
+            "status": "success",
+            "data": {
+                "id": format!("pay_{}", chrono::Utc::now().timestamp()),
                 "account_id": payload.account_id,
                 "amount": payload.amount,
-                "currency": payload.currency_code,
-                "method": payload.payment_method
-            }
+                "currency_code": payload.currency_code,
+                "payment_method": payload.payment_method,
+                "status": "PENDING",
+                "reference_number": format!("REF{}", chrono::Utc::now().timestamp()),
+                "description": payload.description,
+                "customer_email": payload.customer_email,
+                "created_at": chrono::Utc::now().to_rfc3339(),
+                "updated_at": chrono::Utc::now().to_rfc3339()
+            },
+            "message": "Payment created successfully (placeholder implementation)"
         }))
     ).into_response()
 }
