@@ -100,7 +100,7 @@ impl DIContainer {
         let tidb_pool = Arc::new(tidb_pool);
         
         // 既存のユーザー管理システム初期化
-        let tidb_repo = TiDBUserSqlxRepository { pool: tidb_pool.clone() };
+        let tidb_repo = TiDBUserSqlxRepository { pool: (*tidb_pool).clone() };
         let redis_repo = RedisUserSqlxRepository { pool: redis_pool };
         let sync_repo = SyncUserSqlxRepository {
             tidb: tidb_repo,

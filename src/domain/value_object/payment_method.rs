@@ -24,6 +24,10 @@ impl PaymentMethod {
         }
     }
 
+    pub fn from_string(value: &str) -> DomainResult<Self> {
+        Self::from_str(value)
+    }
+
     pub fn as_str(&self) -> &str {
         match self {
             PaymentMethod::Card => "CARD",

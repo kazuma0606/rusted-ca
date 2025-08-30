@@ -55,14 +55,20 @@ impl PaymentController {
         Json(request): Json<PaymentCreateRequest>,
     ) -> PresentationResult<Json<ApiResponse<PaymentResponse>>> {
         // Convert string to domain objects
-        let account_id = AccountId::from_string(request.account_id.clone())
-            .map_err(|e| PresentationError::BadRequest(format!("Invalid account ID: {}", e)))?;
+        let account_id = AccountId::new(request.account_id.clone())
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid account ID: {}", e),
+            })?;
 
         let amount = Money::from_major_units(request.amount, request.currency_code.clone())
-            .map_err(|e| PresentationError::BadRequest(format!("Invalid amount: {}", e)))?;
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid amount: {}", e),
+            })?;
 
         let payment_method = PaymentMethod::from_string(&request.payment_method)
-            .map_err(|e| PresentationError::BadRequest(format!("Invalid payment method: {}", e)))?;
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid payment method: {}", e),
+            })?;
 
         // Execute use case
         let payment = self
@@ -83,10 +89,7 @@ impl PaymentController {
         // Convert to response
         let response = self.payment_to_response(payment);
 
-        Ok(Json(ApiResponse::success(
-            response,
-            "Payment created successfully",
-        )))
+        Ok(Json(ApiResponse::success(response)))
     }
 
     /// Get payment by ID

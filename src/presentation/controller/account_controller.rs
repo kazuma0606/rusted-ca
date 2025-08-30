@@ -1,6 +1,6 @@
 //presentation/controller/account_controller.rs
-// Account HTTP Controller
-// 2025/8/28
+// Account Controller
+// 2025/8/30
 
 use crate::application::usecases::{
     create_account_usecase::{CreateAccountUseCase, CreateAccountUsecaseInterface},
@@ -10,20 +10,20 @@ use crate::application::dto::{
     account_request_dto::CreateAccountRequestDto,
     account_response_dto::AccountResponseDto,
 };
-use crate::domain::value_object::{AccountId, AccountStatus, Email, MerchantName, Money};
+
+use crate::domain::value_object::{account_id::AccountId, email::Email, merchant_name::MerchantName};
+
 use crate::presentation::dto::{
-    account_balance_operation_request::AccountBalanceOperationRequest,
     account_create_request::AccountCreateRequest,
-    account_response::{AccountResponse, BalanceOnlyResponse},
+    account_response::AccountResponse,
     account_update_request::AccountUpdateRequest,
-    api_response::ApiResponse,
+    account_balance_operation_request::AccountBalanceOperationRequest,
 };
+
 use crate::shared::error::presentation_error::{PresentationError, PresentationResult};
-use axum::{
-    extract::{Path, Query},
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::Path, Json, extract::Query, http::StatusCode, response::IntoResponse};
+use crate::presentation::dto::api_response::ApiResponse;
+
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -97,212 +97,61 @@ impl AccountController {
         }
     }
 
-    /// Update account
+    /// Update account - Not implemented
     /// PUT /api/account/{id}
     pub async fn update_account(
         &self,
-        Path(id): Path<String>,
-        Json(request): Json<AccountUpdateRequest>,
+        Path(_id): Path<String>,
+        Json(_request): Json<AccountUpdateRequest>,
     ) -> PresentationResult<Json<ApiResponse<AccountResponse>>> {
-        if request.is_empty() {
-            return Err(PresentationError::BadRequest {
-                message: "At least one field must be provided for update".to_string(),
-            });
-        }
-
-        let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::BadRequest {
-                message: format!("Invalid id: {}", e.to_string()),
-            })?;
-
-        // Get current account
-        let mut account = self
-            .get_account_usecase
-            .execute(account_id)
-            .await
-            .map_err(|e| PresentationError::InternalServer {
-                message: e.to_string(),
-            })?
-            .ok_or_else(|| PresentationError::NotFound {
-                resource: format!("Account with id {}", id),
-            })?;
-
-        // Apply updates
-        if let Some(merchant_name_str) = request.merchant_name {
-            let merchant_name = MerchantName::new(merchant_name_str)
-                .map_err(|e| PresentationError::BadRequest {
-                    message: format!("Invalid merchant_name: {}", e),
-                })?;
-            
-            account.update_merchant_info(merchant_name)
-                .map_err(|e| PresentationError::InternalServer {
-                    message: e.to_string(),
-                })?;
-        }
-
-        if let Some(status_str) = request.status {
-            let status = AccountStatus::from_string(&status_str)
-                .map_err(|e| PresentationError::BadRequest {
-                    message: format!("Invalid status: {}", e),
-                })?;
-            
-            account.update_status(status)
-                .map_err(|e| PresentationError::InternalServer {
-                    message: e.to_string(),
-                })?;
-        }
-
-        // TODO: Save updated account through use case
-        // For now, return the updated account
-        let response = AccountResponse::from_account(&account);
-        Ok(Json(ApiResponse::success(response)))
+        Err(PresentationError::InternalServer {
+            message: "Update account functionality is not yet implemented".to_string(),
+        })
     }
 
-    /// Delete account
+    /// Delete account - Not implemented
     /// DELETE /api/account/{id}
     pub async fn delete_account(
         &self,
-        Path(id): Path<String>,
-    ) -> PresentationResult<Json<ApiResponse<()>>> {
-        let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::BadRequest {
-                message: format!("Invalid id: {}", e.to_string()),
-            })?;
-
-        // Get current account to check if it can be closed
-        let mut account = self
-            .get_account_usecase
-            .execute(account_id)
-            .await
-            .map_err(|e| PresentationError::InternalServer {
-                message: e.to_string(),
-            })?
-            .ok_or_else(|| PresentationError::NotFound {
-                resource: format!("Account with id {}", id),
-            })?;
-
-        // Close the account (business rule: must have zero balance)
-        account.close()
-            .map_err(|e| PresentationError::InternalServer {
-                message: e.to_string(),
-            })?;
-
-        // TODO: Save closed account through use case
-        Ok(Json(ApiResponse::success(())))
+        Path(_id): Path<String>,
+    ) -> PresentationResult<Json<ApiResponse<AccountResponse>>> {
+        Err(PresentationError::InternalServer {
+            message: "Delete account functionality is not yet implemented".to_string(),
+        })
     }
 
-    /// Get account balance
+    /// Get account balance - Not implemented
     /// GET /api/account/{id}/balance
     pub async fn get_account_balance(
         &self,
-        Path(id): Path<String>,
-    ) -> PresentationResult<Json<ApiResponse<BalanceOnlyResponse>>> {
-        let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::BadRequest {
-                message: format!("Invalid id: {}", e.to_string()),
-            })?;
-
-        let account = self
-            .get_account_usecase
-            .execute(account_id)
-            .await
-            .map_err(|e| PresentationError::InternalServer {
-                message: e.to_string(),
-            })?
-            .ok_or_else(|| PresentationError::NotFound {
-                resource: format!("Account with id {}", id),
-            })?;
-
-        let response = BalanceOnlyResponse::from_account(&account);
-        Ok(Json(ApiResponse::success(response)))
+        Path(_id): Path<String>,
+    ) -> PresentationResult<Json<ApiResponse<AccountResponse>>> {
+        Err(PresentationError::InternalServer {
+            message: "Get account balance functionality is not yet implemented".to_string(),
+        })
     }
 
-    /// Credit money to account
+    /// Credit account - Not implemented
     /// POST /api/account/{id}/credit
     pub async fn credit_account(
         &self,
-        Path(id): Path<String>,
-        Json(request): Json<AccountBalanceOperationRequest>,
-    ) -> PresentationResult<Json<ApiResponse<BalanceOnlyResponse>>> {
-        let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::BadRequest {
-                message: format!("Invalid id: {}", e.to_string()),
-            })?;
-
-        // Get current account
-        let mut account = self
-            .get_account_usecase
-            .execute(account_id)
-            .await
-            .map_err(|e| PresentationError::InternalServer {
-                message: e.to_string(),
-            })?
-            .ok_or_else(|| PresentationError::NotFound {
-                resource: format!("Account with id {}", id),
-            })?;
-
-        // Create money amount
-        let credit_amount = Money::from_major_units(request.amount, request.currency_code)
-            .map_err(|e| PresentationError::BadRequest {
-                message: format!("Invalid amount: {}", e),
-            })?;
-
-        // Credit the account
-        account.credit(&credit_amount)
-            .map_err(|e| PresentationError::InternalServer {
-                message: e.to_string(),
-            })?;
-
-        // TODO: Save updated account through use case
-        let response = BalanceOnlyResponse::from_account(&account);
-        Ok(Json(ApiResponse::success(response)))
+        Path(_id): Path<String>,
+        Json(_request): Json<AccountBalanceOperationRequest>,
+    ) -> PresentationResult<Json<ApiResponse<AccountResponse>>> {
+        Err(PresentationError::InternalServer {
+            message: "Credit account functionality is not yet implemented".to_string(),
+        })
     }
 
-    /// Debit money from account
+    /// Debit account - Not implemented
     /// POST /api/account/{id}/debit
     pub async fn debit_account(
         &self,
-        Path(id): Path<String>,
-        Json(request): Json<AccountBalanceOperationRequest>,
-    ) -> PresentationResult<Json<ApiResponse<BalanceOnlyResponse>>> {
-        let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::BadRequest {
-                message: format!("Invalid id: {}", e.to_string()),
-            })?;
-
-        // Get current account
-        let mut account = self
-            .get_account_usecase
-            .execute(account_id)
-            .await
-            .map_err(|e| PresentationError::InternalServer {
-                message: e.to_string(),
-            })?
-            .ok_or_else(|| PresentationError::NotFound {
-                resource: format!("Account with id {}", id),
-            })?;
-
-        // Create money amount
-        let debit_amount = Money::from_major_units(request.amount, request.currency_code)
-            .map_err(|e| PresentationError::BadRequest {
-                message: format!("Invalid amount: {}", e),
-            })?;
-
-        // Debit from the account
-        account.debit(&debit_amount)
-            .map_err(|e| PresentationError::InternalServer {
-                message: e.to_string(),
-            })?;
-
-        // TODO: Save updated account through use case
-        let response = BalanceOnlyResponse::from_account(&account);
-        Ok(Json(ApiResponse::success(response)))
+        Path(_id): Path<String>,
+        Json(_request): Json<AccountBalanceOperationRequest>,
+    ) -> PresentationResult<Json<ApiResponse<AccountResponse>>> {
+        Err(PresentationError::InternalServer {
+            message: "Debit account functionality is not yet implemented".to_string(),
+        })
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    // Note: These would be integration tests that require proper DI setup
-    // The actual test implementation would require mocking the use cases
 }

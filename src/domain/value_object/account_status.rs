@@ -23,6 +23,10 @@ impl AccountStatus {
         }
     }
 
+    pub fn from_string(value: &str) -> DomainResult<Self> {
+        Self::new(value.to_string())
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Active => "ACTIVE",
