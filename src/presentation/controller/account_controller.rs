@@ -63,7 +63,7 @@ impl AccountController {
             .create_account_usecase
             .execute(app_dto)
             .await
-            .map_err(|e| PresentationError::BusinessLogicError {
+            .map_err(|e| PresentationError::InternalServer {
                 message: e.to_string(),
             })?;
 
@@ -82,7 +82,7 @@ impl AccountController {
             .get_account_usecase
             .execute(id.clone())
             .await
-            .map_err(|e| PresentationError::BusinessLogicError {
+            .map_err(|e| PresentationError::InternalServer {
                 message: e.to_string(),
             })?;
 
@@ -92,8 +92,7 @@ impl AccountController {
                 Ok(Json(ApiResponse::success(response)))
             }
             None => Err(PresentationError::NotFound {
-                resource: "Account".to_string(),
-                id,
+                resource: format!("Account with id {}", id),
             }),
         }
     }
@@ -106,16 +105,14 @@ impl AccountController {
         Json(request): Json<AccountUpdateRequest>,
     ) -> PresentationResult<Json<ApiResponse<AccountResponse>>> {
         if request.is_empty() {
-            return Err(PresentationError::ValidationError {
-                field: "request".to_string(),
+            return Err(PresentationError::BadRequest {
                 message: "At least one field must be provided for update".to_string(),
             });
         }
 
         let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::ValidationError {
-                field: "id".to_string(),
-                message: e.to_string(),
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid id: {}", e.to_string()),
             })?;
 
         // Get current account
@@ -123,37 +120,34 @@ impl AccountController {
             .get_account_usecase
             .execute(account_id)
             .await
-            .map_err(|e| PresentationError::BusinessLogicError {
+            .map_err(|e| PresentationError::InternalServer {
                 message: e.to_string(),
             })?
             .ok_or_else(|| PresentationError::NotFound {
-                resource: "Account".to_string(),
-                id: Path(id).0,
+                resource: format!("Account with id {}", id),
             })?;
 
         // Apply updates
         if let Some(merchant_name_str) = request.merchant_name {
             let merchant_name = MerchantName::new(merchant_name_str)
-                .map_err(|e| PresentationError::ValidationError {
-                    field: "merchant_name".to_string(),
-                    message: e.to_string(),
+                .map_err(|e| PresentationError::BadRequest {
+                    message: format!("Invalid merchant_name: {}", e),
                 })?;
             
             account.update_merchant_info(merchant_name)
-                .map_err(|e| PresentationError::BusinessLogicError {
+                .map_err(|e| PresentationError::InternalServer {
                     message: e.to_string(),
                 })?;
         }
 
         if let Some(status_str) = request.status {
-            let status = AccountStatus::from_str(&status_str)
-                .map_err(|e| PresentationError::ValidationError {
-                    field: "status".to_string(),
-                    message: e.to_string(),
+            let status = AccountStatus::from_string(&status_str)
+                .map_err(|e| PresentationError::BadRequest {
+                    message: format!("Invalid status: {}", e),
                 })?;
             
             account.update_status(status)
-                .map_err(|e| PresentationError::BusinessLogicError {
+                .map_err(|e| PresentationError::InternalServer {
                     message: e.to_string(),
                 })?;
         }
@@ -171,9 +165,8 @@ impl AccountController {
         Path(id): Path<String>,
     ) -> PresentationResult<Json<ApiResponse<()>>> {
         let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::ValidationError {
-                field: "id".to_string(),
-                message: e.to_string(),
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid id: {}", e.to_string()),
             })?;
 
         // Get current account to check if it can be closed
@@ -181,17 +174,16 @@ impl AccountController {
             .get_account_usecase
             .execute(account_id)
             .await
-            .map_err(|e| PresentationError::BusinessLogicError {
+            .map_err(|e| PresentationError::InternalServer {
                 message: e.to_string(),
             })?
             .ok_or_else(|| PresentationError::NotFound {
-                resource: "Account".to_string(),
-                id: Path(id).0,
+                resource: format!("Account with id {}", id),
             })?;
 
         // Close the account (business rule: must have zero balance)
         account.close()
-            .map_err(|e| PresentationError::BusinessLogicError {
+            .map_err(|e| PresentationError::InternalServer {
                 message: e.to_string(),
             })?;
 
@@ -206,21 +198,19 @@ impl AccountController {
         Path(id): Path<String>,
     ) -> PresentationResult<Json<ApiResponse<BalanceOnlyResponse>>> {
         let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::ValidationError {
-                field: "id".to_string(),
-                message: e.to_string(),
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid id: {}", e.to_string()),
             })?;
 
         let account = self
             .get_account_usecase
             .execute(account_id)
             .await
-            .map_err(|e| PresentationError::BusinessLogicError {
+            .map_err(|e| PresentationError::InternalServer {
                 message: e.to_string(),
             })?
             .ok_or_else(|| PresentationError::NotFound {
-                resource: "Account".to_string(),
-                id: Path(id).0,
+                resource: format!("Account with id {}", id),
             })?;
 
         let response = BalanceOnlyResponse::from_account(&account);
@@ -235,9 +225,8 @@ impl AccountController {
         Json(request): Json<AccountBalanceOperationRequest>,
     ) -> PresentationResult<Json<ApiResponse<BalanceOnlyResponse>>> {
         let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::ValidationError {
-                field: "id".to_string(),
-                message: e.to_string(),
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid id: {}", e.to_string()),
             })?;
 
         // Get current account
@@ -245,24 +234,22 @@ impl AccountController {
             .get_account_usecase
             .execute(account_id)
             .await
-            .map_err(|e| PresentationError::BusinessLogicError {
+            .map_err(|e| PresentationError::InternalServer {
                 message: e.to_string(),
             })?
             .ok_or_else(|| PresentationError::NotFound {
-                resource: "Account".to_string(),
-                id: Path(id).0,
+                resource: format!("Account with id {}", id),
             })?;
 
         // Create money amount
         let credit_amount = Money::from_major_units(request.amount, request.currency_code)
-            .map_err(|e| PresentationError::ValidationError {
-                field: "amount".to_string(),
-                message: e.to_string(),
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid amount: {}", e),
             })?;
 
         // Credit the account
         account.credit(&credit_amount)
-            .map_err(|e| PresentationError::BusinessLogicError {
+            .map_err(|e| PresentationError::InternalServer {
                 message: e.to_string(),
             })?;
 
@@ -279,9 +266,8 @@ impl AccountController {
         Json(request): Json<AccountBalanceOperationRequest>,
     ) -> PresentationResult<Json<ApiResponse<BalanceOnlyResponse>>> {
         let account_id = AccountId::new(id)
-            .map_err(|e| PresentationError::ValidationError {
-                field: "id".to_string(),
-                message: e.to_string(),
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid id: {}", e.to_string()),
             })?;
 
         // Get current account
@@ -289,24 +275,22 @@ impl AccountController {
             .get_account_usecase
             .execute(account_id)
             .await
-            .map_err(|e| PresentationError::BusinessLogicError {
+            .map_err(|e| PresentationError::InternalServer {
                 message: e.to_string(),
             })?
             .ok_or_else(|| PresentationError::NotFound {
-                resource: "Account".to_string(),
-                id: Path(id).0,
+                resource: format!("Account with id {}", id),
             })?;
 
         // Create money amount
         let debit_amount = Money::from_major_units(request.amount, request.currency_code)
-            .map_err(|e| PresentationError::ValidationError {
-                field: "amount".to_string(),
-                message: e.to_string(),
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid amount: {}", e),
             })?;
 
         // Debit from the account
         account.debit(&debit_amount)
-            .map_err(|e| PresentationError::BusinessLogicError {
+            .map_err(|e| PresentationError::InternalServer {
                 message: e.to_string(),
             })?;
 

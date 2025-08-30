@@ -96,8 +96,11 @@ impl DIContainer {
         tidb_pool: MySqlPool, 
         redis_pool: Pool,
     ) -> Result<Self, InfrastructureError> {
+        // Pool をArcで共有可能にする
+        let tidb_pool = Arc::new(tidb_pool);
+        
         // 既存のユーザー管理システム初期化
-        let tidb_repo = TiDBUserSqlxRepository { pool: tidb_pool };
+        let tidb_repo = TiDBUserSqlxRepository { pool: tidb_pool.clone() };
         let redis_repo = RedisUserSqlxRepository { pool: redis_pool };
         let sync_repo = SyncUserSqlxRepository {
             tidb: tidb_repo,
@@ -172,8 +175,8 @@ impl DIContainer {
         ));
 
         // Financial API Repository初期化
-        let account_repository = Arc::new(MySqlAccountRepository::new(tidb_pool.clone()));
-        let payment_repository = Arc::new(MySqlPaymentRepository::new(Arc::new(tidb_pool.clone())));
+        let account_repository = Arc::new(MySqlAccountRepository::new((*tidb_pool).clone()));
+        let payment_repository = Arc::new(MySqlPaymentRepository::new(tidb_pool.clone()));
 
         // Financial API Use Case初期化
         let create_account_usecase_impl = CreateAccountUseCase::new(

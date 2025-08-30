@@ -76,12 +76,14 @@ impl PaymentController {
                 request.metadata,
             )
             .await
-            .map_err(PresentationError::from)?;
+            .map_err(|e| PresentationError::InternalServer {
+                message: e.to_string(),
+            })?;
 
         // Convert to response
         let response = self.payment_to_response(payment);
 
-        Ok(Json(ApiResponse::success_with_data(
+        Ok(Json(ApiResponse::success(
             response,
             "Payment created successfully",
         )))
@@ -92,26 +94,27 @@ impl PaymentController {
         &self,
         Path(payment_id): Path<String>,
     ) -> PresentationResult<Json<ApiResponse<PaymentResponse>>> {
-        let payment_id = PaymentId::from_string(payment_id)
-            .map_err(|e| PresentationError::BadRequest(format!("Invalid payment ID: {}", e)))?;
+        let payment_id = PaymentId::new(payment_id)
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid payment ID: {}", e),
+            })?;
 
         let payment = self
             .payment_query_repository
             .find_by_id(&payment_id)
             .await
-            .map_err(PresentationError::from)?;
+            .map_err(|e| PresentationError::InternalServer {
+                message: e.to_string(),
+            })?;
 
         match payment {
             Some(payment) => {
                 let response = self.payment_to_response(payment);
-                Ok(Json(ApiResponse::success_with_data(
-                    response,
-                    "Payment retrieved successfully",
-                )))
+                Ok(Json(ApiResponse::success(response)))
             }
-            None => Err(PresentationError::NotFound(
-                "Payment not found".to_string(),
-            )),
+            None => Err(PresentationError::NotFound {
+                resource: "Payment not found".to_string(),
+            }),
         }
     }
 
@@ -121,21 +124,22 @@ impl PaymentController {
         Path(payment_id): Path<String>,
         Json(request): Json<PaymentOperationRequest>,
     ) -> PresentationResult<Json<ApiResponse<PaymentResponse>>> {
-        let payment_id = PaymentId::from_string(payment_id)
-            .map_err(|e| PresentationError::BadRequest(format!("Invalid payment ID: {}", e)))?;
+        let payment_id = PaymentId::new(payment_id)
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid payment ID: {}", e),
+            })?;
 
         let payment = self
             .process_payment_usecase
-            .execute(payment_id)
+            .start_processing(payment_id)
             .await
-            .map_err(PresentationError::from)?;
+            .map_err(|e| PresentationError::InternalServer {
+                message: e.to_string(),
+            })?;
 
         let response = self.payment_to_response(payment);
 
-        Ok(Json(ApiResponse::success_with_data(
-            response,
-            "Payment processed successfully",
-        )))
+        Ok(Json(ApiResponse::success(response)))
     }
 
     /// Refund a payment
@@ -144,8 +148,10 @@ impl PaymentController {
         Path(payment_id): Path<String>,
         Json(request): Json<PaymentOperationRequest>,
     ) -> PresentationResult<Json<ApiResponse<PaymentResponse>>> {
-        let payment_id = PaymentId::from_string(payment_id)
-            .map_err(|e| PresentationError::BadRequest(format!("Invalid payment ID: {}", e)))?;
+        let payment_id = PaymentId::new(payment_id)
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid payment ID: {}", e),
+            })?;
 
         // Parse refund amount if provided
         let refund_amount = if request.is_partial_refund() {
@@ -153,7 +159,9 @@ impl PaymentController {
             let currency = request.currency_code.unwrap();
             Some(
                 Money::from_major_units(amount, currency)
-                    .map_err(|e| PresentationError::BadRequest(format!("Invalid refund amount: {}", e)))?,
+                    .map_err(|e| PresentationError::BadRequest {
+                        message: format!("Invalid refund amount: {}", e),
+                    })?,
             )
         } else {
             None
@@ -161,18 +169,22 @@ impl PaymentController {
 
         let reason = request.reason.unwrap_or_else(|| "Refund requested".to_string());
 
-        let payment = self
-            .refund_payment_usecase
-            .execute(payment_id, refund_amount.as_ref(), reason)
-            .await
-            .map_err(PresentationError::from)?;
+        let payment = if let Some(amount) = refund_amount {
+            self.refund_payment_usecase
+                .partial_refund(payment_id.clone(), amount.clone(), reason.clone())
+                .await
+        } else {
+            self.refund_payment_usecase
+                .full_refund(payment_id.clone(), reason.clone())
+                .await
+        }
+            .map_err(|e| PresentationError::InternalServer {
+                message: e.to_string(),
+            })?;
 
         let response = self.payment_to_response(payment);
 
-        Ok(Json(ApiResponse::success_with_data(
-            response,
-            "Payment refunded successfully",
-        )))
+        Ok(Json(ApiResponse::success(response)))
     }
 
     /// List payments with optional filtering
@@ -186,8 +198,10 @@ impl PaymentController {
         // Convert query parameters to domain objects
         let account_id = if let Some(id) = query.account_id {
             Some(
-                AccountId::from_string(id)
-                    .map_err(|e| PresentationError::BadRequest(format!("Invalid account ID: {}", e)))?,
+                AccountId::new(id)
+                    .map_err(|e| PresentationError::BadRequest {
+                        message: format!("Invalid account ID: {}", e),
+                    })?,
             )
         } else {
             None
@@ -195,8 +209,10 @@ impl PaymentController {
 
         let status = if let Some(status_str) = query.status {
             Some(
-                PaymentStatus::from_string(&status_str)
-                    .map_err(|e| PresentationError::BadRequest(format!("Invalid status: {}", e)))?,
+                PaymentStatus::from_str(&status_str)
+                    .map_err(|e| PresentationError::BadRequest {
+                        message: format!("Invalid status: {}", e),
+                    })?,
             )
         } else {
             None
@@ -207,12 +223,16 @@ impl PaymentController {
             self.payment_query_repository
                 .find_by_account_id(account_id)
                 .await
-                .map_err(PresentationError::from)?
+                .map_err(|e| PresentationError::InternalServer {
+                message: e.to_string(),
+            })?
         } else if let Some(status) = &status {
             self.payment_query_repository
                 .find_by_status(status)
                 .await
-                .map_err(PresentationError::from)?
+                .map_err(|e| PresentationError::InternalServer {
+                message: e.to_string(),
+            })?
         } else {
             // If no specific filters, we'd need a find_all method
             // For now, return empty list
@@ -239,10 +259,7 @@ impl PaymentController {
             limit,
         );
 
-        Ok(Json(ApiResponse::success_with_data(
-            response,
-            "Payments retrieved successfully",
-        )))
+        Ok(Json(ApiResponse::success(response)))
     }
 
     /// Get payment statistics for an account
@@ -250,14 +267,18 @@ impl PaymentController {
         &self,
         Path(account_id): Path<String>,
     ) -> PresentationResult<Json<ApiResponse<PaymentStatsResponse>>> {
-        let account_id = AccountId::from_string(account_id)
-            .map_err(|e| PresentationError::BadRequest(format!("Invalid account ID: {}", e)))?;
+        let account_id = AccountId::new(account_id)
+            .map_err(|e| PresentationError::BadRequest {
+                message: format!("Invalid account_id: {}", e),
+            })?;
 
         let stats = self
             .payment_query_repository
             .get_payment_stats(&account_id)
             .await
-            .map_err(PresentationError::from)?;
+            .map_err(|e| PresentationError::InternalServer {
+                message: e.to_string(),
+            })?;
 
         let response = PaymentStatsResponse::new(
             account_id.value().to_string(),
@@ -265,16 +286,13 @@ impl PaymentController {
             stats.successful_payments,
             stats.failed_payments,
             stats.pending_payments,
-            stats.refunded_payments,
+            0, // refunded_payments - not available in current PaymentStats
             stats.total_amount_cents as f64 / 100.0,
             stats.successful_amount_cents as f64 / 100.0,
             "USD".to_string(), // TODO: Get from account currency
         );
 
-        Ok(Json(ApiResponse::success_with_data(
-            response,
-            "Payment statistics retrieved successfully",
-        )))
+        Ok(Json(ApiResponse::success(response)))
     }
 
     /// Helper method to convert Payment entity to PaymentResponse DTO
