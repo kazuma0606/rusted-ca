@@ -178,38 +178,26 @@ async fn create_account_handler(
     State(di): State<Arc<DIContainer>>,
     Json(payload): Json<AccountCreateRequest>,
 ) -> impl IntoResponse {
-    // Enhanced placeholder implementation for testing
-    // TODO: Replace with actual Account UseCase integration
-    (
-        StatusCode::CREATED,
-        Json(serde_json::json!({
-            "status": "success",
-            "data": {
-                "id": format!("acc_{}", chrono::Utc::now().timestamp()),
-                "merchant_name": payload.merchant_name,
-                "email": payload.email,
-                "currency_code": payload.currency_code,
-                "balance": 0.0,
-                "status": "ACTIVE",
-                "created_at": chrono::Utc::now().to_rfc3339()
-            },
-            "message": "Account created successfully (placeholder implementation)"
-        }))
-    ).into_response()
+    match di.account_controller.create_account(Json(payload)).await {
+        Ok(response) => (StatusCode::CREATED, response).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ).into_response(),
+    }
 }
 
 async fn get_account_handler(
     State(di): State<Arc<DIContainer>>,
     Path(account_id): Path<String>,
 ) -> impl IntoResponse {
-    // Placeholder implementation
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "error": "Account API not yet integrated with DIContainer",
-            "account_id": account_id
-        }))
-    ).into_response()
+    match di.account_controller.get_account(Path(account_id)).await {
+        Ok(response) => (StatusCode::OK, response).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ).into_response(),
+    }
 }
 
 async fn update_account_handler(
@@ -217,42 +205,39 @@ async fn update_account_handler(
     Path(account_id): Path<String>,
     Json(payload): Json<AccountUpdateRequest>,
 ) -> impl IntoResponse {
-    // Placeholder implementation
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "error": "Account API not yet integrated with DIContainer",
-            "account_id": account_id
-        }))
-    ).into_response()
+    match di.account_controller.update_account(Path(account_id), Json(payload)).await {
+        Ok(response) => (StatusCode::OK, response).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ).into_response(),
+    }
 }
 
 async fn delete_account_handler(
     State(di): State<Arc<DIContainer>>,
     Path(account_id): Path<String>,
 ) -> impl IntoResponse {
-    // Placeholder implementation
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "error": "Account API not yet integrated with DIContainer",
-            "account_id": account_id
-        }))
-    ).into_response()
+    match di.account_controller.delete_account(Path(account_id)).await {
+        Ok(response) => (StatusCode::OK, response).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ).into_response(),
+    }
 }
 
 async fn get_account_balance_handler(
     State(di): State<Arc<DIContainer>>,
     Path(account_id): Path<String>,
 ) -> impl IntoResponse {
-    // Placeholder implementation
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "error": "Account balance API not yet integrated",
-            "account_id": account_id
-        }))
-    ).into_response()
+    match di.account_controller.get_account_balance(Path(account_id)).await {
+        Ok(response) => (StatusCode::OK, response).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ).into_response(),
+    }
 }
 
 async fn credit_account_handler(
@@ -260,14 +245,13 @@ async fn credit_account_handler(
     Path(account_id): Path<String>,
     Json(payload): Json<AccountBalanceOperationRequest>,
 ) -> impl IntoResponse {
-    // Placeholder implementation
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "error": "Account credit API not yet integrated",
-            "account_id": account_id
-        }))
-    ).into_response()
+    match di.account_controller.credit_account(Path(account_id), Json(payload)).await {
+        Ok(response) => (StatusCode::OK, response).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ).into_response(),
+    }
 }
 
 async fn debit_account_handler(
@@ -275,14 +259,13 @@ async fn debit_account_handler(
     Path(account_id): Path<String>,
     Json(payload): Json<AccountBalanceOperationRequest>,
 ) -> impl IntoResponse {
-    // Placeholder implementation
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "error": "Account debit API not yet integrated",
-            "account_id": account_id
-        }))
-    ).into_response()
+    match di.account_controller.debit_account(Path(account_id), Json(payload)).await {
+        Ok(response) => (StatusCode::OK, response).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ).into_response(),
+    }
 }
 
 // ===== Payment Management Handlers =====

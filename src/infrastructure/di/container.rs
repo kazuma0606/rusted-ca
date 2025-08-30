@@ -12,13 +12,33 @@ use crate::application::usecases::logging::{
     search_logs_usecase::SearchLogsUsecase,
     manage_log_usecase::ManageLogUsecase,
 };
+// Financial API Use Cases
+use crate::application::usecases::{
+    create_account_usecase::{CreateAccountUseCase, CreateAccountUsecaseInterface},
+    get_account_usecase::{GetAccountUseCase, GetAccountUsecaseInterface},
+    create_payment_usecase::CreatePaymentUseCase,
+    process_payment_usecase::ProcessPaymentUseCase,
+    refund_payment_usecase::RefundPaymentUseCase,
+};
+// Controllers
 use crate::presentation::controller::log_controller::LogController;
+use crate::presentation::controller::account_controller::AccountController;
+use crate::presentation::controller::payment_controller::PaymentController;
 
 use crate::domain::repository::log_repository::LogRepositoryInterface;
+// Financial API Repositories
+use crate::domain::repository::{
+    account_command_repository::AccountCommandRepositoryInterface,
+    account_query_repository::AccountQueryRepositoryInterface,
+    payment_command_repository::PaymentCommandRepository,
+    payment_query_repository::PaymentQueryRepository,
+};
 use crate::infrastructure::repository::{
     redis_user_sqlx_repository::RedisUserSqlxRepository,
     sync_user_sqlx_repository::SyncUserSqlxRepository,
     tidb_user_sqlx_repository::TiDBUserSqlxRepository,
+    mysql_account_repository::MySqlAccountRepository,
+    mysql_payment_repository::MySqlPaymentRepository,
 };
 use crate::infrastructure::logging::mongodb_log_repository::MongoDbLogRepository;
 use crate::shared::utils::password_hasher;
@@ -54,6 +74,21 @@ pub struct DIContainer {
     
     // 新規追加：ログコントローラー
     pub log_controller: Arc<LogController>,
+
+    // Financial API Repositories
+    pub account_repository: Arc<MySqlAccountRepository>,
+    pub payment_repository: Arc<MySqlPaymentRepository>,
+    
+    // Financial API Use Cases
+    pub create_account_usecase: Arc<dyn CreateAccountUsecaseInterface>,
+    pub get_account_usecase: Arc<dyn GetAccountUsecaseInterface>,
+    pub create_payment_usecase: Arc<CreatePaymentUseCase>,
+    pub process_payment_usecase: Arc<ProcessPaymentUseCase>,
+    pub refund_payment_usecase: Arc<RefundPaymentUseCase>,
+    
+    // Financial API Controllers
+    pub account_controller: Arc<AccountController>,
+    pub payment_controller: Arc<PaymentController>,
 }
 
 impl DIContainer {
@@ -136,6 +171,50 @@ impl DIContainer {
             collect_log_usecase.clone(),
         ));
 
+        // Financial API Repository初期化
+        let account_repository = Arc::new(MySqlAccountRepository::new(tidb_pool.clone()));
+        let payment_repository = Arc::new(MySqlPaymentRepository::new(Arc::new(tidb_pool.clone())));
+
+        // Financial API Use Case初期化
+        let create_account_usecase_impl = CreateAccountUseCase::new(
+            account_repository.clone() as Arc<dyn AccountCommandRepositoryInterface>,
+            account_repository.clone() as Arc<dyn AccountQueryRepositoryInterface>,
+        );
+        let create_account_usecase = Arc::new(create_account_usecase_impl) as Arc<dyn CreateAccountUsecaseInterface>;
+
+        let get_account_usecase_impl = GetAccountUseCase::new(
+            account_repository.clone() as Arc<dyn AccountQueryRepositoryInterface>,
+        );
+        let get_account_usecase = Arc::new(get_account_usecase_impl) as Arc<dyn GetAccountUsecaseInterface>;
+
+        let create_payment_usecase = Arc::new(CreatePaymentUseCase::new(
+            payment_repository.clone() as Arc<dyn PaymentCommandRepository>,
+            payment_repository.clone() as Arc<dyn PaymentQueryRepository>,
+        ));
+
+        let process_payment_usecase = Arc::new(ProcessPaymentUseCase::new(
+            payment_repository.clone() as Arc<dyn PaymentCommandRepository>,
+            payment_repository.clone() as Arc<dyn PaymentQueryRepository>,
+        ));
+
+        let refund_payment_usecase = Arc::new(RefundPaymentUseCase::new(
+            payment_repository.clone() as Arc<dyn PaymentCommandRepository>,
+            payment_repository.clone() as Arc<dyn PaymentQueryRepository>,
+        ));
+
+        // Financial API Controller初期化
+        let account_controller = Arc::new(AccountController::new(
+            create_account_usecase.clone(),
+            get_account_usecase.clone(),
+        ));
+
+        let payment_controller = Arc::new(PaymentController::new(
+            create_payment_usecase.clone(),
+            process_payment_usecase.clone(),
+            refund_payment_usecase.clone(),
+            payment_repository.clone() as Arc<dyn PaymentQueryRepository>,
+        ));
+
         Ok(Self {
             create_user_usecase,
             update_user_usecase,
@@ -147,6 +226,15 @@ impl DIContainer {
             manage_log_usecase,
             uuid_generator,
             log_controller,
+            account_repository,
+            payment_repository,
+            create_account_usecase,
+            get_account_usecase,
+            create_payment_usecase,
+            process_payment_usecase,
+            refund_payment_usecase,
+            account_controller,
+            payment_controller,
         })
     }
 }
