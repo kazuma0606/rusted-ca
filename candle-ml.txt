@@ -1,0 +1,203 @@
+# Candle ML + MongoDB Logging 統合設計プラン
+
+## プロジェクト目標
+Rust製クリーンアーキテクチャのテンプレートとして、ノートPC（CPU）でも動作するCandle MLのきれいな統合方法を提示する。
+最終的にはWeb API (`/api/ml/predict`) を実装し、`curl`等で実際にデータを投げて推論が成功すること、および関連ログがMongoDBに記録されることをもってゴールとする。
+
+---
+
+📋 **Phase 1: Infrastructure Update**
+*   **ステータス:** ほぼ完了
+
+**1.1 Docker Compose更新**
+*   **ステータス:** ✅ 完了済み
+*   **内容:** `docker-compose.yml`にMongoDB (ポート27017) + Mongo Express (ポート8081) が追加済み。
+
+**1.2 Cargo.toml依存関係追加**
+*   **ステータス:** 📝 未着手
+*   **内容:** Candle MLフレームワークとデータ処理ライブラリを追加する。
+```toml
+# Candle ML Framework
+candle-core = "0.6"
+candle-nn = "0.6"
+candle-transformers = "0.6"
+candle-datasets = "0.6"
+# Data processing
+# polars = { version = "0.33", features = ["lazy", "csv", "json"] } # 必要に応じて追加
+```
+
+---
+
+📋 **Phase 2: MongoDB Logging System**
+*   **ステータス:** ✅ 完了済み
+*   **(メモ: 現状の実装は、当初の設計よりも高機能なカテゴリ別ロギング、詳細な設定、フェイルオーバー機能などを備えた、より先進的なログ基盤となっています。)**
+
+**2.1 新規ログエンティティ作成**
+*   **ファイル:** `src/domain/entity/log_entry.rs`
+
+**2.2 MongoDB接続とリポジトリ**
+*   **ファイル:** `src/infrastructure/database/mongodb_connection.rs`
+*   **ファイル:** `src/infrastructure/repository/mongodb/`
+
+**2.3 ログミドルウェア実装**
+*   **ファイル:** `src/shared/middleware/logging_middleware.rs`
+
+---
+
+📋 **Phase 3: Candle ML Domain**
+*   **ステータス:** 📝 未着手
+
+**3.1 ML専用ドメインエンティティ**
+*   **ディレクトリ:** `src/domain/ml_entity/`
+```
+src/domain/ml_entity/
+├── mod.rs
+├── model.rs           # MLモデルメタデータ
+├── experiment.rs      # 実験記録
+├── dataset.rs         # データセット管理
+└── training_job.rs    # 学習ジョブ状態
+```
+
+**3.2 ML専用値オブジェクト**
+*   **ディレクトリ:** `src/domain/ml_value_object/`
+```
+src/domain/ml_value_object/
+├── mod.rs
+├── model_metrics.rs    # 精度、損失値、F1スコア
+├── hyperparameters.rs  # 学習パラメータ
+├── tensor_shape.rs     # テンソル形状定義
+└── model_version.rs    # バージョン管理
+```
+
+**3.3 MLリポジトリインターフェース**
+*   **ディレクトリ:** `src/domain/ml_repository/`
+```
+src/domain/ml_repository/
+├── mod.rs
+├── model_repository.rs      # モデル永続化
+├── experiment_repository.rs # 実験データ
+└── dataset_repository.rs    # データセット管理
+```
+
+---
+
+📋 **Phase 4: Candle ML Engine**
+*   **ステータス:** 📝 未着手
+
+**4.1 Candleエンジン実装**
+*   **ディレクトリ:** `src/infrastructure/ml_engine/`
+```
+src/infrastructure/ml_engine/
+├── mod.rs
+├── candle_engine.rs      # Candle ML コア
+├── model_loader.rs       # モデル読み込み
+├── tensor_processor.rs   # テンソル処理
+└── training_engine.rs    # 学習エンジン
+```
+
+**4.2 MLストレージ**
+*   **ディレクトリ:** `src/infrastructure/ml_storage/`
+```
+src/infrastructure/ml_storage/
+├── mod.rs
+├── model_storage.rs      # .safetensors/.gguf対応
+├── checkpoint_storage.rs # 学習チェックポイント
+└── dataset_loader.rs     # データ読み込み
+```
+
+---
+
+📋 **Phase 5: ML Application Layer**
+*   **ステータス:** 📝 未着手
+
+**5.1 MLユースケース**
+*   **ディレクトリ:** `src/application/ml_usecases/`
+```
+src/application/ml_usecases/
+├── mod.rs
+├── train_model_usecase.rs    # モデル学習
+├── inference_usecase.rs      # 推論実行
+├── evaluate_usecase.rs       # モデル評価
+└── experiment_usecase.rs     # 実験管理
+```
+
+**5.2 ML専用DTO**
+*   **ディレクトリ:** `src/application/ml_dto/`
+```
+src/application/ml_dto/
+├── mod.rs
+├── training_request.rs     # 学習リクエスト
+├── inference_request.rs    # 推論リクエスト
+├── evaluation_result.rs    # 評価結果
+└── experiment_result.rs    # 実験結果
+```
+
+---
+
+📋 **Phase 6: ML API Endpoints**
+*   **ステータス:** 📝 未着手
+
+**6.1 MLコントローラー**
+*   **ディレクトリ:** `src/presentation/ml_controller/`
+```
+src/presentation/ml_controller/
+├── mod.rs
+├── training_controller.rs    # POST /api/ml/train
+├── inference_controller.rs   # POST /api/ml/predict
+├── model_controller.rs       # GET /api/ml/models
+└── experiment_controller.rs  # GET /api/ml/experiments
+```
+
+**6.2 MLルーター**
+*   **ファイル:** `src/presentation/router/ml_router.rs`
+
+---
+
+📋 **Phase 7: Configuration & Integration**
+*   **ステータス:** 📝 未着手
+
+**7.1 DIコンテナ統合**
+*   **ファイル:** `src/infrastructure/di/container.rs`
+*   **内容:** MLエンジン、ユースケース等をDIコンテナに登録する。
+
+**7.2 lib.rs & app_router.rs 統合**
+*   **ファイル:** `src/lib.rs`, `src/presentation/router/app_router.rs`
+*   **内容:** ML関連モジュールを公開し、メインルーターに`ml_router`を組み込む。
+
+---
+
+📋 **Phase 8: Sample Implementation**
+*   **ステータス:** 📝 未着手
+
+**8.1 シンプルな分類モデル**
+*   **ディレクトリ:** `models/` (プロジェクトルート)
+*   **内容:** MNISTなどの事前学習済み`.safetensors`モデルを配置する。
+
+**8.2 サンプルデータセット**
+*   **ディレクトリ:** `datasets/`
+*   **内容:** 推論APIのテストに使用するサンプルデータ（画像やCSVなど）を配置する。
+
+---
+
+### 🔧 **実装計画 (E2E動作検証ゴール)**
+
+1.  **ステップ1: 依存関係の追加と骨格作成 (Phase 1 & 3)**
+    *   `Cargo.toml`を更新し、`candle`関連ライブラリを追加する。
+    *   各層にML機能用のディレクトリと空のファイルを作成する。
+
+2.  **ステップ2: ドメイン層とインフラ層の実装 (Phase 3 & 4)**
+    *   `domain`層にエンティティ等を定義する。
+    *   `infrastructure`層に推論エンジンとモデル読み込み処理を実装する。
+
+3.  **ステップ3: アプリケーション層の実装 (Phase 5)**
+    *   推論ユースケースを実装し、エンジンとロギングを協調させる。
+
+4.  **ステップ4: プレゼンテーション層（API）の実装 (Phase 6)**
+    *   APIコントローラとルーターを実装する。
+
+5.  **ステップ5: DIコンテナによる全体の結合 (Phase 7)**
+    *   作成した全コンポーネントをDIコンテナに登録し、ルーターを統合する。
+
+6.  **ステップ6: 最終動作検証 (ゴール)**
+    *   `cargo run`でサーバーを起動し、`curl`で`/api/ml/predict`にリクエストを送信。
+    *   APIの応答とMongoDBのログを確認し、E2Eでの動作を実証する。
