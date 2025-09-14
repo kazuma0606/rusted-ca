@@ -113,7 +113,7 @@ pub async fn watch_middleware_with_base_path(
     next: Next,
     base_path: &str,
 ) -> Response<Body> {
-    let start_time = Instant::now();
+    let _start_time = Instant::now();
     let _request_id = generate_lightweight_id();
 
     // 最小限の情報のみ収集

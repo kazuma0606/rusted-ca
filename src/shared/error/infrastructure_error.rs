@@ -14,8 +14,20 @@ pub enum InfrastructureError {
     #[error("Database transaction failed: {message}")]
     DatabaseTransaction { message: String },
 
+    #[error("Database operation failed: {0}")]
+    DatabaseOperationError(String),
+
+    #[error("Database connection error: {0}")]
+    DatabaseConnectionError(String),
+
     #[error("Data serialization failed: {data_type} - {message}")]
     DataSerialization { data_type: String, message: String },
+
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+
+    #[error("Deserialization error: {0}")]
+    DeserializationError(String),
 
     // Network/External Service Errors
     #[error("Network error: {endpoint} - {message}")]
@@ -47,6 +59,10 @@ pub enum InfrastructureError {
 
     #[error("Password hashing failed: {message}")]
     PasswordHashing { message: String },
+
+    // Service Errors
+    #[error("Service error: {0}")]
+    ServiceError(String),
 }
 
 // Infrastructure Layer Result Type

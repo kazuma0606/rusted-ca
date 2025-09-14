@@ -37,6 +37,25 @@ redis = { version = "0.24", features = ["tokio-comp"] }
 deadpool-redis = "0.22.0"
 argon2 = "0.5.3"
 
+# MongoDB & Advanced Logging
+mongodb = "2.8"
+futures = "0.3"
+tokio-stream = "0.1"
+bson = { version = "2.0", features = ["chrono-0_4", "uuid-1"] }
+serde_with = "3.0"
+
+# Structured Logging Enhancement
+tracing-appender = "0.2"
+
+# Performance & Concurrency
+dashmap = "5.5"
+crossbeam-channel = "0.5"
+
+# System utilities
+gethostname = "0.4"
+url = "2.5"
+toml = "0.8"
+
 [build-dependencies]
 prost-build = "0.12"
 

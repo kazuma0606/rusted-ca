@@ -1,13 +1,5 @@
-use axum::{
-    body::Body,
-    extract::State,
-    http::{Request, StatusCode},
-    middleware::Next,
-    response::Response,
-};
 use reqwest::Client;
 use serde_json::json;
-use std::sync::Arc;
 use tokio::time::timeout;
 
 use crate::infrastructure::config::app_config::DiscordConfig;

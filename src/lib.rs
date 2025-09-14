@@ -36,6 +36,7 @@ pub mod shared {
         pub mod metrics_middleware;
         pub mod security_headers_middleware;
         pub mod watch_middleware;
+        pub mod logging_middleware;
 
         // pub use auth_middleware::*;
         // pub use cors_middleware::*;
@@ -64,6 +65,7 @@ pub mod shared {
 pub mod domain {
     pub mod entity {
         pub mod user;
+        pub mod log_entry;
 
         // pub use user::*;
     }
@@ -170,10 +172,15 @@ pub mod infrastructure {
         pub mod redis_user_sqlx_repository;
         pub mod sync_user_sqlx_repository;
         pub mod tidb_user_sqlx_repository;
+        pub mod mongodb;
 
         pub use in_memory_user_command_repository::*;
         pub use in_memory_user_query_repository::*;
         // pub use monitored_repository::*;
+    }
+
+    pub mod logging {
+        pub mod log_collector_service;
     }
 
     pub mod cqrs {
@@ -197,16 +204,20 @@ pub mod infrastructure {
     pub mod config {
         pub mod app_config;
         pub mod metrics_config;
+        pub mod logging_config;
 
         // pub use app_config::*;
         // pub use metrics_config::*;
     }
     pub mod database {
         pub mod sqlite_connection;
+        pub mod mongodb_connection;
+        pub mod mongodb_initializer;
     }
 
     pub mod di {
         pub mod container;
+        pub mod logging_container;
     }
 
     pub mod web {
