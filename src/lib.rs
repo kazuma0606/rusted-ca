@@ -255,6 +255,10 @@ pub mod presentation {
         pub mod health_controller;
         pub mod metrics_controller;
         pub mod user_controller;
+    }
+
+    pub mod ml_controller {
+        pub mod inference_controller;
 
         // pub use auth_controller::*;
         // pub use health_controller::*;
@@ -301,8 +305,6 @@ pub mod presentation {
         // pub use metrics_router::*;
         // pub use user_router::*;
     }
-
-    pub mod ml_controller;
 }
 
 // ===== Application State =====

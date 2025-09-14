@@ -11,13 +11,13 @@ use crate::presentation::router::{
 };
 use crate::presentation::router::ml_router::ml_router;
 
-pub fn build_api_router(_di_container: Arc<DIContainer>) -> Router {
+pub fn build_api_router(di_container: Arc<DIContainer>) -> Router {
     Router::new()
         .route("/health", get(health_controller::health_check))
         .nest("/auth", auth_router::create_auth_routes())
-        .nest("/user", user_router::create_simple_user_routes(_di_container.clone()))
+        .nest("/user", user_router::create_simple_user_routes(di_container.clone()))
         .nest("/fortune", fortune_router::create_fortune_routes())
         .nest("/metrics", metrics_router::create_metrics_routes())
         .nest("/grpc", grpc_router::create_grpc_routes())
-        .nest("/api/ml", ml_router())
+        .nest("/api/ml", ml_router().with_state(di_container.clone()))
 }
