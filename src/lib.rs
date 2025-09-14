@@ -294,6 +294,7 @@ pub mod presentation {
         pub mod grpc_router;
         pub mod metrics_router;
         pub mod user_router;
+        pub mod ml_router;
 
         // pub use app_router::*;
         // pub use auth_router::*;

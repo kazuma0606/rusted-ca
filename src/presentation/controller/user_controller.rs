@@ -535,6 +535,21 @@ where
                     }
                 }),
             ),
+            ApplicationError::InternalError(msg) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({
+                    "success": false,
+                    "error": {
+                        "code": "INTERNAL_ERROR",
+                        "message": msg,
+                        "details": {
+                            "layer": "application",
+                            "operation": "internal",
+                            "timestamp": chrono::Utc::now().to_rfc3339()
+                        }
+                    }
+                }),
+            ),
         }
     }
 }

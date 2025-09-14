@@ -8,12 +8,19 @@ use crate::application::usecases::get_user_usecase::GetUserQueryUsecaseInterface
 use crate::application::usecases::update_user_usecase::UpdateUserUsecaseInterface;
 use crate::presentation::controller::user_controller::UserController;
 use crate::shared::middleware::auth_middleware::{AdminUser, AuthenticatedUser};
+use crate::infrastructure::di::container::DIContainer;
 use axum::middleware::from_fn;
 use axum::{
     Router,
     routing::{delete, get, post, put},
 };
 use std::sync::Arc;
+
+// Simplified wrapper for DIContainer compatibility
+pub fn create_simple_user_routes(_di_container: Arc<DIContainer>) -> Router {
+    Router::new()
+        .route("/", get(|| async { "User routes placeholder" }))
+}
 
 /// ユーザー関連のルーティング設定
 ///

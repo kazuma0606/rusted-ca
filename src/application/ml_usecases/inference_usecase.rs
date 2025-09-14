@@ -38,19 +38,114 @@ impl InferenceUsecaseImpl {
 #[async_trait]
 impl InferenceUsecase for InferenceUsecaseImpl {
     async fn execute(&self, request: InferenceRequest) -> Result<InferenceResponse, ApplicationError> {
-        // --- Placeholder Implementation ---
-        // This is where the main application logic will go:
-        // 1. Call `model_repository` to find the model metadata by `request.model_id`.
-        // 2. If model not found, return an error.
-        // 3. Create a `Tensor` from `request.input_data`.
-        // 4. Call `candle_engine.run_inference` with the model metadata and the input tensor.
-        // 5. Process the output tensor into a `Vec<f32>`.
-        // 6. Use `log_collector` to log the details of the operation (success or failure).
-        // 7. Return the `InferenceResponse`.
+        // Log the start of inference operation
+        {
+            let log_collector = self.log_collector.lock().await;
+            log_collector.log_ml_operation(
+                &request.model_id.to_string(),
+                "inference_start",
+                &format!("Starting inference for model: {}", request.model_id)
+            ).await;
+        }
 
-        println!("Placeholder: Running inference use case for model ID: {}", request.model_id);
+        // 1. Find model metadata from repository
+        let model_metadata = match self.model_repository.find_by_id(request.model_id).await {
+            Ok(Some(model)) => model,
+            Ok(None) => {
+                let error_msg = format!("Model not found: {}", request.model_id);
+                // Log error
+                {
+                    let log_collector = self.log_collector.lock().await;
+                    log_collector.log_ml_operation(
+                        &request.model_id.to_string(),
+                        "inference_error", 
+                        &error_msg
+                    ).await;
+                }
+                return Err(ApplicationError::NotFound { 
+                    resource: "Model".to_string(), 
+                    id: request.model_id.to_string() 
+                });
+            },
+            Err(e) => {
+                let error_msg = format!("Error accessing model repository: {:?}", e);
+                {
+                    let log_collector = self.log_collector.lock().await;
+                    log_collector.log_ml_operation(
+                        &request.model_id.to_string(),
+                        "inference_error",
+                        &error_msg
+                    ).await;
+                }
+                return Err(ApplicationError::InternalError(error_msg));
+            }
+        };
 
-        // For now, return a dummy response.
-        Ok(InferenceResponse { output_data: vec![0.1; 10] })
+        // 2. Convert input Vec<f32> to Tensor
+        let input_tensor = match candle_core::Tensor::from_vec(
+            request.input_data.clone(), 
+            &[request.input_data.len()], 
+            &candle_core::Device::Cpu
+        ) {
+            Ok(tensor) => tensor,
+            Err(e) => {
+                let error_msg = format!("Failed to create input tensor: {:?}", e);
+                {
+                    let log_collector = self.log_collector.lock().await;
+                    log_collector.log_ml_operation(
+                        &request.model_id.to_string(),
+                        "inference_error",
+                        &error_msg
+                    ).await;
+                }
+                return Err(ApplicationError::InternalError(error_msg));
+            }
+        };
+
+        // 3. Run inference using Candle engine
+        let output_tensor = match self.candle_engine.run_inference(&model_metadata, &input_tensor).await {
+            Ok(output) => output,
+            Err(e) => {
+                let error_msg = format!("Inference failed: {:?}", e);
+                {
+                    let log_collector = self.log_collector.lock().await;
+                    log_collector.log_ml_operation(
+                        &request.model_id.to_string(),
+                        "inference_error",
+                        &error_msg
+                    ).await;
+                }
+                return Err(ApplicationError::InternalError(error_msg));
+            }
+        };
+
+        // 4. Convert output Tensor to Vec<f32>
+        let output_data = match output_tensor.to_vec1::<f32>() {
+            Ok(vec) => vec,
+            Err(e) => {
+                let error_msg = format!("Failed to convert output tensor to vec: {:?}", e);
+                {
+                    let log_collector = self.log_collector.lock().await;
+                    log_collector.log_ml_operation(
+                        &request.model_id.to_string(),
+                        "inference_error",
+                        &error_msg
+                    ).await;
+                }
+                return Err(ApplicationError::InternalError(error_msg));
+            }
+        };
+
+        // Log successful inference
+        {
+            let log_collector = self.log_collector.lock().await;
+            log_collector.log_ml_operation(
+                &request.model_id.to_string(),
+                "inference_success",
+                &format!("Inference completed successfully. Output length: {}", output_data.len())
+            ).await;
+        }
+
+        Ok(InferenceResponse { output_data })
     }
 }

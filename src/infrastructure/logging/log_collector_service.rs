@@ -162,6 +162,74 @@ impl LogCollectorService {
         Ok(())
     }
 
+    /// Log ML operation with standardized format
+    pub async fn log_ml_operation(&self, model_id: &str, operation: &str, message: &str) -> Result<(), InfrastructureError> {
+        use chrono::Utc;
+        use uuid::Uuid;
+        use crate::domain::entity::log_entry::{LogLevel, LogCategory, MLLogContext, SystemLogContext, LogMetrics};
+        use bson::doc;
+
+        let entry = LogEntry {
+            id: None,
+            timestamp: Utc::now(),
+            level: LogLevel::Info,
+            category: LogCategory::ML,
+            subcategory: Some("inference".to_string()),
+            message: message.to_string(),
+            trace_id: Uuid::new_v4().to_string(),
+            span_id: Uuid::new_v4().to_string(),
+            parent_span_id: None,
+            request_id: Uuid::new_v4().to_string(),
+            session_id: None,
+            user_id: None,
+            http_context: None,
+            ml_context: Some(MLLogContext {
+                operation_type: crate::domain::entity::log_entry::MLOperationType::Inference,
+                model_id: Some(model_id.to_string()),
+                model_version: Some("v1".to_string()),
+                experiment_id: None,
+                dataset_id: None,
+                epoch: None,
+                batch_size: None,
+                learning_rate: None,
+                loss: None,
+                accuracy: None,
+                inference_time_ms: None,
+                memory_usage_mb: None,
+                gpu_usage_percent: None,
+                input_shape: None,
+                output_shape: None,
+                hyperparameters: None,
+                model_metrics: None,
+            }),
+            system_context: SystemLogContext {
+                layer: crate::domain::entity::log_entry::ArchitectureLayer::Application,
+                component: "InferenceUsecase".to_string(),
+                operation: operation.to_string(),
+                hostname: "localhost".to_string(),
+                process_id: std::process::id(),
+                thread_id: format!("{:?}", std::thread::current().id()),
+                service_version: Some("0.1.0".to_string()),
+            },
+            metrics: LogMetrics {
+                execution_time_ms: None,
+                memory_usage_bytes: None,
+                cpu_usage_percent: None,
+                disk_io_bytes: None,
+                network_io_bytes: None,
+                database_query_time_ms: None,
+                cache_hit_rate: None,
+            },
+            metadata: doc! {
+                "model_id": model_id,
+                "operation_type": operation
+            },
+            tags: vec!["ml".to_string(), operation.to_string()],
+        };
+        
+        self.log_async(entry).await
+    }
+
     /// Force flush all buffers immediately
     pub async fn flush_all(&self) -> Result<(), InfrastructureError> {
         Self::flush_all_buffers(

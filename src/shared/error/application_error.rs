@@ -42,6 +42,9 @@ pub enum ApplicationError {
 
     #[error("Not found: {resource} - {id}")]
     NotFound { resource: String, id: String },
+
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 // Application Layer Result Type
