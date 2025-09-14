@@ -5,6 +5,7 @@
 use crate::application::usecases::create_user_sqlx_usecase::CreateUserSqlxUsecase;
 use crate::application::usecases::create_user_sqlx_usecase::CreateUserSqlxUsecaseInterface;
 use crate::infrastructure::di::container::DIContainer;
+use crate::infrastructure::di::logging_container::LoggingContainer;
 use crate::infrastructure::web::api_router::build_api_router;
 use crate::presentation::dto::user_create_request_sqlx::UserCreateRequestSqlx;
 use axum::{
@@ -18,18 +19,24 @@ use tokio::net::TcpListener;
 
 /// PoC用Webサーバーを起動する
 pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // プール初期化
+    // --- Logging Container Setup ---
+    // Logging should be initialized first to capture subsequent events.
+    let logging_container = LoggingContainer::from_env().await?;
+    let log_collector = logging_container.get_log_collector();
+
+    // --- Main Application Pools ---
     let tidb_pool = MySqlPool::connect("mysql://root:root@localhost:3306/rusted_ca").await?;
     let redis_cfg = deadpool_redis::Config::from_url("redis://127.0.0.1/");
     let redis_pool = redis_cfg.create_pool(Some(deadpool_redis::Runtime::Tokio1))?;
 
-    // DI
-    let di = Arc::new(DIContainer::new(tidb_pool, redis_pool));
+    // --- DI Container Setup ---
+    // Pass the log_collector to the main DI container.
+    let di = Arc::new(DIContainer::new(tidb_pool, redis_pool, log_collector));
 
-    // ルーター
+    // --- Router Setup ---
     let app = build_api_router(di.clone());
 
-    // サーバー起動
+    // --- Server Startup ---
     println!("Listening on http://0.0.0.0:3000");
     let addr: SocketAddr = "0.0.0.0:3000".parse()?;
     let listener = TcpListener::bind(addr).await?;

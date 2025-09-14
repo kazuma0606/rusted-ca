@@ -18,14 +18,14 @@ pub trait InferenceUsecase: Send + Sync {
 pub struct InferenceUsecaseImpl {
     candle_engine: Arc<CandleEngine>,
     model_repository: Arc<dyn ModelRepository>,
-    log_collector: Arc<LogCollectorService>,
+    log_collector: Arc<tokio::sync::Mutex<LogCollectorService>>,
 }
 
 impl InferenceUsecaseImpl {
     pub fn new(
         candle_engine: Arc<CandleEngine>,
         model_repository: Arc<dyn ModelRepository>,
-        log_collector: Arc<LogCollectorService>,
+        log_collector: Arc<tokio::sync::Mutex<LogCollectorService>>,
     ) -> Self {
         Self {
             candle_engine,

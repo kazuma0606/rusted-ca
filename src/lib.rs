@@ -180,6 +180,7 @@ pub mod infrastructure {
         pub mod sync_user_sqlx_repository;
         pub mod tidb_user_sqlx_repository;
         pub mod mongodb;
+        pub mod in_memory_ml_repository;
 
         pub use in_memory_user_command_repository::*;
         pub use in_memory_user_query_repository::*;
@@ -273,6 +274,8 @@ pub mod presentation {
         pub mod user_deleted_response;
         pub mod user_response;
         pub mod user_response_sqlx;
+        pub mod ml_inference_request;
+        pub mod ml_inference_response;
 
         // pub use api_response::*;
         // pub use create_user_request::*;
