@@ -105,6 +105,10 @@ pub mod domain {
 
         // pub use user_domain_service::*;
     }
+
+    pub mod ml_entity;
+    pub mod ml_value_object;
+    pub mod ml_repository;
 }
 
 // ===== Application Layer =====
@@ -161,6 +165,9 @@ pub mod application {
 
         // pub use metrics_decorator::*;
     }
+
+    pub mod ml_dto;
+    pub mod ml_usecases;
 }
 
 // ===== Infrastructure Layer =====
@@ -234,6 +241,9 @@ pub mod infrastructure {
         pub mod cors_settings;
         pub mod graceful_shutdown;
     }
+
+    pub mod ml_engine;
+    pub mod ml_storage;
 }
 
 // ===== Presentation Layer =====
@@ -287,6 +297,8 @@ pub mod presentation {
         // pub use metrics_router::*;
         // pub use user_router::*;
     }
+
+    pub mod ml_controller;
 }
 
 // ===== Application State =====
